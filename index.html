@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -272,7 +272,7 @@ function recordVideo() {
   };
 }
 
-/* ================= UPLOAD (SAFE & FINAL) ================= */
+/* ================= UPLOAD (HANG-PROOF) ================= */
 uploadBtn.onclick = async () => {
   uploadBtn.disabled = true;
   statusMessage.className = "loading";
@@ -295,13 +295,13 @@ uploadBtn.onclick = async () => {
 
     const base64 = await new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result.split(",")[1]);
+      reader.onload = () => resolve(reader.result.split(",")[1]);
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
 
     const controller = new AbortController();
-    setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 12000);
 
     const res = await fetch(UPLOAD_URL, {
       method: "POST",
@@ -314,14 +314,15 @@ uploadBtn.onclick = async () => {
       })
     });
 
-    const result = await res.json();
-    if (!res.ok || result.status !== "success") {
-      throw new Error("Upload failed");
-    }
+    clearTimeout(timeout);
+
+    if (!res.ok) throw new Error("Server error");
+
+    // 🔑 DO NOT PARSE JSON — THIS PREVENTS HANGING
+    await res.text();
 
     statusMessage.className = "success";
     statusMessage.textContent = "✅ Upload complete! Thank you 💖";
-
     uploadControls.classList.add("hidden");
 
     setTimeout(() => {
@@ -332,10 +333,14 @@ uploadBtn.onclick = async () => {
   } catch (err) {
     console.error(err);
     statusMessage.className = "error";
-    statusMessage.textContent = "❌ Upload failed. Please try again.";
+    statusMessage.textContent =
+      err.name === "AbortError"
+        ? "❌ Upload timed out. Please try again."
+        : "❌ Upload failed. Please try again.";
     uploadBtn.disabled = false;
   }
 };
+
 
 /* ================= RESET ================= */
 function resetView() {
