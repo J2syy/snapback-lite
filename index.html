@@ -78,6 +78,31 @@ button.primary {
 .hidden {
   display: none;
 }
+
+/* ===== STATUS MESSAGE ===== */
+#statusMessage {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  text-align: center;
+  max-width: 280px;
+}
+
+#statusMessage.loading {
+  background: #fff3cd;
+  color: #856404;
+}
+
+#statusMessage.success {
+  background: #d4edda;
+  color: #155724;
+}
+
+#statusMessage.error {
+  background: #f8d7da;
+  color: #721c24;
+}
 </style>
 </head>
 
@@ -109,6 +134,8 @@ button.primary {
   <button id="uploadBtn">Upload</button>
 </div>
 
+<div id="statusMessage" class="hidden"></div>
+
 <script>
 /* ================= CONFIG ================= */
 const UPLOAD_URL =
@@ -124,6 +151,7 @@ const videoBtn = document.getElementById("videoBtn");
 const shutter = document.getElementById("shutter");
 const uploadControls = document.getElementById("uploadControls");
 const uploadBtn = document.getElementById("uploadBtn");
+const statusMessage = document.getElementById("statusMessage");
 const filterButtons = document.querySelectorAll("[data-filter]");
 
 /* ================= STATE ================= */
@@ -154,17 +182,13 @@ startCamera(false);
 /* ================= MODE ================= */
 photoBtn.onclick = () => {
   mode = "photo";
-  uploadControls.classList.add("hidden");
-  canvas.classList.add("hidden");
-  video.classList.remove("hidden");
+  resetView();
   startCamera(false);
 };
 
 videoBtn.onclick = () => {
   mode = "video";
-  uploadControls.classList.add("hidden");
-  canvas.classList.add("hidden");
-  video.classList.remove("hidden");
+  resetView();
   startCamera(true);
 };
 
@@ -213,13 +237,13 @@ function applyFilter() {
     ctx.fillRect(0,0,canvas.width,canvas.height);
   }
 
-  const vignette = ctx.createRadialGradient(
+  const v = ctx.createRadialGradient(
     canvas.width/2, canvas.height/2, canvas.width/4,
     canvas.width/2, canvas.height/2, canvas.width/1.1
   );
-  vignette.addColorStop(0,"rgba(0,0,0,0)");
-  vignette.addColorStop(1,"rgba(0,0,0,0.45)");
-  ctx.fillStyle = vignette;
+  v.addColorStop(0,"rgba(0,0,0,0)");
+  v.addColorStop(1,"rgba(0,0,0,0.45)");
+  ctx.fillStyle = v;
   ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
@@ -239,7 +263,7 @@ function recordVideo() {
   recorder = new MediaRecorder(stream);
   recorder.start();
 
-  setTimeout(() => recorder.stop(), 10000);
+  setTimeout(() => recorder.stop(), 8000);
 
   recorder.ondataavailable = e => chunks.push(e.data);
   recorder.onstop = () => {
@@ -251,7 +275,10 @@ function recordVideo() {
 /* ================= UPLOAD ================= */
 uploadBtn.onclick = async () => {
   uploadBtn.disabled = true;
-  uploadBtn.textContent = "Uploading…";
+
+  statusMessage.className = "loading";
+  statusMessage.textContent = "Uploading…";
+  statusMessage.classList.remove("hidden");
 
   try {
     let blob, mime, ext;
@@ -268,7 +295,6 @@ uploadBtn.onclick = async () => {
     }
 
     const reader = new FileReader();
-
     reader.onloadend = async () => {
       const res = await fetch(UPLOAD_URL, {
         method: "POST",
@@ -280,28 +306,40 @@ uploadBtn.onclick = async () => {
         })
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      const result = await res.json();
+      if (!res.ok || result.status !== "success") {
+        throw new Error("Upload failed");
+      }
 
-      alert("Uploaded successfully!");
+      statusMessage.className = "success";
+      statusMessage.textContent = "✅ Upload complete! Thank you 💖";
 
       uploadControls.classList.add("hidden");
-      uploadBtn.disabled = false;
-      uploadBtn.textContent = "Upload";
 
-      startCamera(mode === "video");
-      video.classList.remove("hidden");
-      canvas.classList.add("hidden");
+      setTimeout(() => {
+        resetView();
+        startCamera(mode === "video");
+      }, 2000);
     };
 
     reader.readAsDataURL(blob);
 
   } catch (err) {
     console.error(err);
-    alert("Upload failed. Please try again.");
+    statusMessage.className = "error";
+    statusMessage.textContent = "❌ Upload failed. Please try again.";
     uploadBtn.disabled = false;
-    uploadBtn.textContent = "Upload";
   }
 };
+
+/* ================= RESET ================= */
+function resetView() {
+  uploadControls.classList.add("hidden");
+  statusMessage.classList.add("hidden");
+  canvas.classList.add("hidden");
+  video.classList.remove("hidden");
+  uploadBtn.disabled = false;
+}
 </script>
 
 </body>
