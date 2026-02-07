@@ -139,7 +139,7 @@ button.primary {
 <script>
 /* ================= CONFIG ================= */
 const UPLOAD_URL =
-"https://script.google.com/macros/s/AKfycbyVToSlr4MJ_j1Um8LwrCzyL0oy7SWuJ4dmsXB1yrRonVQZ39JD1dXUNxj7j9KPL2Xd/exec";
+"https://script.google.com/macros/s/AKfycbyzu3NfEFkNBd68i0fBFS36aUYynMZfBpMihvSYwaXCSEOjn1BvGFmI5QHJFA34a3Te/exec";
 
 /* ================= ELEMENTS ================= */
 const video = document.getElementById("video");
@@ -172,8 +172,8 @@ async function startCamera(audio = false) {
       audio
     });
     video.srcObject = stream;
-  } catch (err) {
-    alert("Camera access is required.");
+  } catch {
+    alert("Camera permission is required.");
   }
 }
 
@@ -225,7 +225,7 @@ function applyFilter() {
 
   if (currentFilter === "grain") {
     ctx.globalAlpha = 0.15;
-    for (let i = 0; i < 3000; i++) {
+    for (let i = 0; i < 2500; i++) {
       ctx.fillStyle = `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
       ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 1, 1);
     }
@@ -263,7 +263,7 @@ function recordVideo() {
   recorder = new MediaRecorder(stream);
   recorder.start();
 
-  setTimeout(() => recorder.stop(), 8000);
+  setTimeout(() => recorder.stop(), 6000);
 
   recorder.ondataavailable = e => chunks.push(e.data);
   recorder.onstop = () => {
@@ -272,10 +272,9 @@ function recordVideo() {
   };
 }
 
-/* ================= UPLOAD ================= */
+/* ================= UPLOAD (SAFE & FINAL) ================= */
 uploadBtn.onclick = async () => {
   uploadBtn.disabled = true;
-
   statusMessage.className = "loading";
   statusMessage.textContent = "Uploading…";
   statusMessage.classList.remove("hidden");
@@ -284,7 +283,7 @@ uploadBtn.onclick = async () => {
     let blob, mime, ext;
 
     if (mode === "photo") {
-      blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.9));
+      blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.85));
       mime = "image/jpeg";
       ext = "jpg";
     } else {
@@ -294,35 +293,41 @@ uploadBtn.onclick = async () => {
       ext = "mp4";
     }
 
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const res = await fetch(UPLOAD_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          file: reader.result.split(",")[1],
-          filename: `snapback_${Date.now()}.${ext}`,
-          mimeType: mime
-        })
-      });
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
 
-      const result = await res.json();
-      if (!res.ok || result.status !== "success") {
-        throw new Error("Upload failed");
-      }
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 15000);
 
-      statusMessage.className = "success";
-      statusMessage.textContent = "✅ Upload complete! Thank you 💖";
+    const res = await fetch(UPLOAD_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        file: base64,
+        filename: `snapback_${Date.now()}.${ext}`,
+        mimeType: mime
+      })
+    });
 
-      uploadControls.classList.add("hidden");
+    const result = await res.json();
+    if (!res.ok || result.status !== "success") {
+      throw new Error("Upload failed");
+    }
 
-      setTimeout(() => {
-        resetView();
-        startCamera(mode === "video");
-      }, 2000);
-    };
+    statusMessage.className = "success";
+    statusMessage.textContent = "✅ Upload complete! Thank you 💖";
 
-    reader.readAsDataURL(blob);
+    uploadControls.classList.add("hidden");
+
+    setTimeout(() => {
+      resetView();
+      startCamera(mode === "video");
+    }, 2000);
 
   } catch (err) {
     console.error(err);
