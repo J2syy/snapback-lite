@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
 <title>SNAPBACK Lite</title>
 
 <style>
@@ -21,7 +21,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--dark);
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -91,12 +91,12 @@ button.primary {
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas" class="hidden"></canvas>
 
-<div class="controls" id="modeControls">
+<div class="controls">
   <button id="photoBtn">📸 Photo</button>
   <button id="videoBtn">🎥 Video</button>
 </div>
 
-<div class="controls" id="filterControls">
+<div class="controls">
   <button data-filter="warm">Warm</button>
   <button data-filter="grain">Grain</button>
   <button data-filter="soft">Soft</button>
@@ -110,11 +110,11 @@ button.primary {
 </div>
 
 <script>
-/* ===== CONFIG ===== */
+/* ================= CONFIG ================= */
 const UPLOAD_URL =
 "https://script.google.com/macros/s/AKfycbyVToSlr4MJ_j1Um8LwrCzyL0oy7SWuJ4dmsXB1yrRonVQZ39JD1dXUNxj7j9KPL2Xd/exec";
 
-/* ===== ELEMENTS ===== */
+/* ================= ELEMENTS ================= */
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -126,15 +126,15 @@ const uploadControls = document.getElementById("uploadControls");
 const uploadBtn = document.getElementById("uploadBtn");
 const filterButtons = document.querySelectorAll("[data-filter]");
 
-/* ===== STATE ===== */
+/* ================= STATE ================= */
 let stream = null;
 let recorder = null;
 let chunks = [];
+let recordedBlob = null;
 let mode = "photo";
 let currentFilter = "warm";
-let recordedBlob = null;
 
-/* ===== CAMERA ===== */
+/* ================= CAMERA ================= */
 async function startCamera(audio = false) {
   if (stream) stream.getTracks().forEach(t => t.stop());
 
@@ -144,41 +144,47 @@ async function startCamera(audio = false) {
       audio
     });
     video.srcObject = stream;
-  } catch (e) {
-    alert("Camera permission denied. Please allow and refresh.");
+  } catch (err) {
+    alert("Camera access is required.");
   }
 }
 
 startCamera(false);
 
-/* ===== MODE ===== */
+/* ================= MODE ================= */
 photoBtn.onclick = () => {
   mode = "photo";
+  uploadControls.classList.add("hidden");
+  canvas.classList.add("hidden");
+  video.classList.remove("hidden");
   startCamera(false);
 };
 
 videoBtn.onclick = () => {
   mode = "video";
+  uploadControls.classList.add("hidden");
+  canvas.classList.add("hidden");
+  video.classList.remove("hidden");
   startCamera(true);
 };
 
-/* ===== FILTER ===== */
+/* ================= FILTER ================= */
 filterButtons.forEach(btn => {
   btn.onclick = () => currentFilter = btn.dataset.filter;
 });
 
-/* ===== SHUTTER ===== */
+/* ================= SHUTTER ================= */
 shutter.onclick = () => {
   if (mode === "photo") takePhoto();
   else recordVideo();
 };
 
-/* ===== PHOTO ===== */
+/* ================= PHOTO ================= */
 function takePhoto() {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-  ctx.drawImage(video, 0, 0);
 
+  ctx.drawImage(video, 0, 0);
   applyFilter();
   drawDate();
 
@@ -195,7 +201,7 @@ function applyFilter() {
 
   if (currentFilter === "grain") {
     ctx.globalAlpha = 0.15;
-    for (let i = 0; i < 4000; i++) {
+    for (let i = 0; i < 3000; i++) {
       ctx.fillStyle = `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
       ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 1, 1);
     }
@@ -207,24 +213,27 @@ function applyFilter() {
     ctx.fillRect(0,0,canvas.width,canvas.height);
   }
 
-  const v = ctx.createRadialGradient(
+  const vignette = ctx.createRadialGradient(
     canvas.width/2, canvas.height/2, canvas.width/4,
     canvas.width/2, canvas.height/2, canvas.width/1.1
   );
-  v.addColorStop(0,"rgba(0,0,0,0)");
-  v.addColorStop(1,"rgba(0,0,0,0.45)");
-  ctx.fillStyle = v;
+  vignette.addColorStop(0,"rgba(0,0,0,0)");
+  vignette.addColorStop(1,"rgba(0,0,0,0.45)");
+  ctx.fillStyle = vignette;
   ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
 function drawDate() {
-  const d = new Date().toLocaleDateString();
   ctx.font = "16px monospace";
   ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.fillText(d, canvas.width - 120, canvas.height - 20);
+  ctx.fillText(
+    new Date().toLocaleDateString(),
+    canvas.width - 120,
+    canvas.height - 20
+  );
 }
 
-/* ===== VIDEO ===== */
+/* ================= VIDEO ================= */
 function recordVideo() {
   chunks = [];
   recorder = new MediaRecorder(stream);
@@ -239,31 +248,59 @@ function recordVideo() {
   };
 }
 
-/* ===== UPLOAD ===== */
+/* ================= UPLOAD ================= */
 uploadBtn.onclick = async () => {
-  let blob, mime;
+  uploadBtn.disabled = true;
+  uploadBtn.textContent = "Uploading…";
 
-  if (mode === "photo") {
-    blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.9));
-    mime = "image/jpeg";
-  } else {
-    blob = recordedBlob;
-    mime = "video/mp4";
+  try {
+    let blob, mime, ext;
+
+    if (mode === "photo") {
+      blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.9));
+      mime = "image/jpeg";
+      ext = "jpg";
+    } else {
+      if (!recordedBlob) throw new Error("No video recorded");
+      blob = recordedBlob;
+      mime = "video/mp4";
+      ext = "mp4";
+    }
+
+    const reader = new FileReader();
+
+    reader.onloadend = async () => {
+      const res = await fetch(UPLOAD_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file: reader.result.split(",")[1],
+          filename: `snapback_${Date.now()}.${ext}`,
+          mimeType: mime
+        })
+      });
+
+      if (!res.ok) throw new Error("Upload failed");
+
+      alert("Uploaded successfully!");
+
+      uploadControls.classList.add("hidden");
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = "Upload";
+
+      startCamera(mode === "video");
+      video.classList.remove("hidden");
+      canvas.classList.add("hidden");
+    };
+
+    reader.readAsDataURL(blob);
+
+  } catch (err) {
+    console.error(err);
+    alert("Upload failed. Please try again.");
+    uploadBtn.disabled = false;
+    uploadBtn.textContent = "Upload";
   }
-
-  const reader = new FileReader();
-  reader.onloadend = async () => {
-    await fetch(UPLOAD_URL, {
-      method: "POST",
-      body: JSON.stringify({
-        file: reader.result.split(",")[1],
-        filename: `snapback_${Date.now()}.${mode === "photo" ? "jpg" : "mp4"}`,
-        mimeType: mime
-      })
-    });
-    location.reload();
-  };
-  reader.readAsDataURL(blob);
 };
 </script>
 
