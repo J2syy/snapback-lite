@@ -112,48 +112,64 @@ button.primary {
 </div>
 
 <script>
-// 🔴 REPLACE THIS WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
-const UPLOAD_URL = "https://script.google.com/macros/s/AKfycbyVToSlr4MJ_j1Um8LwrCzyL0oy7SWuJ4dmsXB1yrRonVQZ39JD1dXUNxj7j9KPL2Xd/exec";
+// ✅ YOUR GOOGLE APPS SCRIPT WEB APP URL
+const UPLOAD_URL =
+"https://script.google.com/macros/s/AKfycbyVToSlr4MJ_j1Um8LwrCzyL0oy7SWuJ4dmsXB1yrRonVQZ39JD1dXUNxj7j9KPL2Xd/exec";
 
 const video = document.getElementById("camera");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-let stream;
-let mediaRecorder;
+let stream = null;
+let mediaRecorder = null;
 let chunks = [];
 let mode = "photo";
 let recordedBlob = null;
 
-async function startCamera() {
-  stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: "environment" } },
-    audio: false
-  });
-  video.srcObject = stream;
+// ---------- CAMERA ----------
+async function startCamera(withAudio = false) {
+  try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+      audio: withAudio
+    });
+
+    video.srcObject = stream;
+  } catch (err) {
+    alert(
+      "Camera access blocked.\n\n" +
+      "• Use Chrome\n" +
+      "• Allow Camera permission\n" +
+      "• Do not use Incognito\n" +
+      "• Refresh the page"
+    );
+    console.error(err);
+  }
 }
 
-startCamera();
+// start camera on load
+startCamera(false);
 
+// ---------- MODE SWITCH ----------
 document.getElementById("photoMode").onclick = () => {
   mode = "photo";
+  startCamera(false);
 };
 
-document.getElementById("videoMode").onclick = async () => {
+document.getElementById("videoMode").onclick = () => {
   mode = "video";
-  stream.getTracks().forEach(t => t.stop());
-  stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: "environment" } },
-    audio: true
-  });
-  video.srcObject = stream;
+  startCamera(true);
 };
 
+// ---------- SHUTTER ----------
 document.getElementById("shutter").onclick = () => {
   if (mode === "photo") capturePhoto();
   else recordVideo();
 };
 
+// ---------- PHOTO ----------
 function capturePhoto() {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
@@ -167,11 +183,9 @@ function capturePhoto() {
 }
 
 function applyRetroFilter() {
-  // warm tone
-  ctx.fillStyle = "rgba(255, 190, 140, 0.12)";
+  ctx.fillStyle = "rgba(255,190,140,0.12)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // grain
   ctx.globalAlpha = 0.15;
   for (let i = 0; i < 4000; i++) {
     ctx.fillStyle = `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
@@ -179,17 +193,17 @@ function applyRetroFilter() {
   }
   ctx.globalAlpha = 1;
 
-  // vignette
-  const g = ctx.createRadialGradient(
+  const v = ctx.createRadialGradient(
     canvas.width/2, canvas.height/2, canvas.width/4,
     canvas.width/2, canvas.height/2, canvas.width/1.1
   );
-  g.addColorStop(0, "rgba(0,0,0,0)");
-  g.addColorStop(1, "rgba(0,0,0,0.45)");
-  ctx.fillStyle = g;
+  v.addColorStop(0, "rgba(0,0,0,0)");
+  v.addColorStop(1, "rgba(0,0,0,0.45)");
+  ctx.fillStyle = v;
   ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
+// ---------- VIDEO ----------
 function recordVideo() {
   chunks = [];
   mediaRecorder = new MediaRecorder(stream);
@@ -204,8 +218,39 @@ function recordVideo() {
   };
 }
 
+// ---------- UPLOAD ----------
 document.getElementById("uploadBtn").onclick = async () => {
   let blob, mime;
 
   if (mode === "photo") {
-    blob = await new Promise(r => canva
+    blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.9));
+    mime = "image/jpeg";
+  } else {
+    blob = recordedBlob;
+    mime = "video/mp4";
+  }
+
+  const reader = new FileReader();
+  reader.onloadend = async () => {
+    const base64 = reader.result.split(",")[1];
+
+    await fetch(UPLOAD_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        file: base64,
+        filename: `snapback_${Date.now()}.${mode === "photo" ? "jpg" : "mp4"}`,
+        mimeType: mime
+      })
+    });
+
+    document.body.innerHTML =
+      document.getElementById("success").outerHTML;
+    document.getElementById("success").classList.remove("hidden");
+  };
+
+  reader.readAsDataURL(blob);
+};
+</script>
+
+</body>
+</html>
