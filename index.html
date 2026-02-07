@@ -1,51 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SNAPBACK Lite</title>
+
+<style>
+:root {
+  --bg: #f6efe9;
+  --accent: #d87c6a;
+  --dark: #2f2f2f;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--dark);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+h1 {
+  margin: 0;
+  letter-spacing: 2px;
+}
+
+.tagline {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+video, canvas {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 12px;
+  background: black;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+button {
+  padding: 10px 14px;
+  border-radius: 18px;
+  border: none;
+  background: #fff;
+  font-size: 13px;
+}
+
+button.primary {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 22px;
+}
+
+.hidden {
+  display: none;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>SNAPBACK</h1>
+  <div class="tagline">Old-school vibes. New memories.</div>
+</header>
+
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas" class="hidden"></canvas>
+
+<div class="controls" id="modeControls">
+  <button id="photoBtn">📸 Photo</button>
+  <button id="videoBtn">🎥 Video</button>
+</div>
+
+<div class="controls" id="filterControls">
+  <button data-filter="warm">Warm</button>
+  <button data-filter="grain">Grain</button>
+  <button data-filter="soft">Soft</button>
+  <button data-filter="none">None</button>
+</div>
+
+<button id="shutter" class="primary">●</button>
+
+<div class="controls hidden" id="uploadControls">
+  <button id="uploadBtn">Upload</button>
+</div>
+
 <script>
+/* ===== CONFIG ===== */
 const UPLOAD_URL =
 "https://script.google.com/macros/s/AKfycbyVToSlr4MJ_j1Um8LwrCzyL0oy7SWuJ4dmsXB1yrRonVQZ39JD1dXUNxj7j9KPL2Xd/exec";
 
-const video = document.getElementById("camera");
+/* ===== ELEMENTS ===== */
+const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-let stream = null;
-let mediaRecorder = null;
-let chunks = [];
-let recordedBlob = null;
-let mode = "photo";
-let filter = "warm";
+const photoBtn = document.getElementById("photoBtn");
+const videoBtn = document.getElementById("videoBtn");
+const shutter = document.getElementById("shutter");
+const uploadControls = document.getElementById("uploadControls");
+const uploadBtn = document.getElementById("uploadBtn");
+const filterButtons = document.querySelectorAll("[data-filter]");
 
-// ---------- CAMERA ----------
-async function startCamera(withAudio = false) {
+/* ===== STATE ===== */
+let stream = null;
+let recorder = null;
+let chunks = [];
+let mode = "photo";
+let currentFilter = "warm";
+let recordedBlob = null;
+
+/* ===== CAMERA ===== */
+async function startCamera(audio = false) {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+
   try {
-    if (stream) stream.getTracks().forEach(t => t.stop());
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "environment" },
-      audio: withAudio
+      audio
     });
     video.srcObject = stream;
   } catch (e) {
-    alert("Please allow camera access and refresh.");
+    alert("Camera permission denied. Please allow and refresh.");
   }
 }
+
 startCamera(false);
 
-// ---------- MODE ----------
-photoMode.onclick = () => {
+/* ===== MODE ===== */
+photoBtn.onclick = () => {
   mode = "photo";
   startCamera(false);
 };
-videoMode.onclick = () => {
+
+videoBtn.onclick = () => {
   mode = "video";
   startCamera(true);
 };
 
-// ---------- SHUTTER ----------
+/* ===== FILTER ===== */
+filterButtons.forEach(btn => {
+  btn.onclick = () => currentFilter = btn.dataset.filter;
+});
+
+/* ===== SHUTTER ===== */
 shutter.onclick = () => {
-  if (mode === "photo") capturePhoto();
+  if (mode === "photo") takePhoto();
   else recordVideo();
 };
 
-// ---------- PHOTO ----------
-function capturePhoto() {
+/* ===== PHOTO ===== */
+function takePhoto() {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   ctx.drawImage(video, 0, 0);
@@ -58,14 +187,13 @@ function capturePhoto() {
   uploadControls.classList.remove("hidden");
 }
 
-// ---------- FILTERS ----------
 function applyFilter() {
-  if (filter === "warm") {
+  if (currentFilter === "warm") {
     ctx.fillStyle = "rgba(255,180,130,0.12)";
     ctx.fillRect(0,0,canvas.width,canvas.height);
   }
 
-  if (filter === "grainy") {
+  if (currentFilter === "grain") {
     ctx.globalAlpha = 0.15;
     for (let i = 0; i < 4000; i++) {
       ctx.fillStyle = `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
@@ -74,12 +202,11 @@ function applyFilter() {
     ctx.globalAlpha = 1;
   }
 
-  if (filter === "soft") {
+  if (currentFilter === "soft") {
     ctx.fillStyle = "rgba(255,255,255,0.08)";
     ctx.fillRect(0,0,canvas.width,canvas.height);
   }
 
-  // vignette (always)
   const v = ctx.createRadialGradient(
     canvas.width/2, canvas.height/2, canvas.width/4,
     canvas.width/2, canvas.height/2, canvas.width/1.1
@@ -90,29 +217,29 @@ function applyFilter() {
   ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
-// ---------- DATE ----------
 function drawDate() {
-  const date = new Date().toLocaleDateString();
+  const d = new Date().toLocaleDateString();
   ctx.font = "16px monospace";
   ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.fillText(date, canvas.width - 110, canvas.height - 20);
+  ctx.fillText(d, canvas.width - 120, canvas.height - 20);
 }
 
-// ---------- VIDEO ----------
+/* ===== VIDEO ===== */
 function recordVideo() {
   chunks = [];
-  mediaRecorder = new MediaRecorder(stream);
-  mediaRecorder.start();
-  setTimeout(() => mediaRecorder.stop(), 10000);
+  recorder = new MediaRecorder(stream);
+  recorder.start();
 
-  mediaRecorder.ondataavailable = e => chunks.push(e.data);
-  mediaRecorder.onstop = () => {
+  setTimeout(() => recorder.stop(), 10000);
+
+  recorder.ondataavailable = e => chunks.push(e.data);
+  recorder.onstop = () => {
     recordedBlob = new Blob(chunks, { type: "video/mp4" });
     uploadControls.classList.remove("hidden");
   };
 }
 
-// ---------- UPLOAD ----------
+/* ===== UPLOAD ===== */
 uploadBtn.onclick = async () => {
   let blob, mime;
 
@@ -134,19 +261,11 @@ uploadBtn.onclick = async () => {
         mimeType: mime
       })
     });
-
-    document.body.innerHTML = success.outerHTML;
-    success.classList.remove("hidden");
+    location.reload();
   };
   reader.readAsDataURL(blob);
 };
-
-// ---------- FILTER BUTTONS ----------
-const filters = ["warm","grainy","soft","none"];
-filters.forEach(f => {
-  const b = document.createElement("button");
-  b.textContent = f;
-  b.onclick = () => filter = f;
-  document.querySelector(".controls").appendChild(b);
-});
 </script>
+
+</body>
+</html>
