@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -43,27 +43,76 @@ h1 {
   opacity: 0.7;
 }
 
-video, canvas {
+/* ===== VIEWPORT ===== */
+.view-container {
+  position: relative;
   width: 100%;
   max-width: 420px;
   border-radius: 12px;
+  overflow: hidden;
   background: black;
+  margin: 10px 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
+video, canvas {
+  width: 100%;
+  display: block;
+}
+
+#videoOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Allows clicking through to video if needed */
+  transition: background 0.3s ease;
+}
+
+/* ===== CONTROLS ===== */
 .controls {
   display: flex;
   gap: 8px;
-  margin: 10px 0;
+  margin: 6px 0;
   flex-wrap: wrap;
   justify-content: center;
+  width: 100%;
+  max-width: 420px;
+}
+
+.filter-controls {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 0 15px 10px 15px;
+  justify-content: flex-start;
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.filter-controls::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
 }
 
 button {
-  padding: 10px 14px;
+  padding: 10px 16px;
   border-radius: 18px;
   border: none;
   background: #fff;
   font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  transition: all 0.2s ease;
+}
+
+button.active {
+  background: var(--dark);
+  color: white;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 button.primary {
@@ -73,10 +122,14 @@ button.primary {
   background: var(--accent);
   color: white;
   font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 /* ===== STATUS MESSAGE ===== */
@@ -113,20 +166,20 @@ button.primary {
   <div class="tagline">Old-school vibes. New memories.</div>
 </header>
 
-<video id="video" autoplay playsinline></video>
-<canvas id="canvas" class="hidden"></canvas>
-
 <div class="controls">
-  <button id="photoBtn">📸 Photo</button>
+  <button id="flipBtn">🔄 Flip</button>
+  <button id="photoBtn" class="active">📸 Photo</button>
   <button id="videoBtn">🎥 Video</button>
 </div>
 
-<div class="controls">
-  <button data-filter="warm">Warm</button>
-  <button data-filter="grain">Grain</button>
-  <button data-filter="soft">Soft</button>
-  <button data-filter="none">None</button>
+<div class="view-container">
+  <video id="video" autoplay playsinline></video>
+  <div id="videoOverlay"></div>
+  <canvas id="canvas" class="hidden"></canvas>
 </div>
+
+<!-- Dynamic Filter Buttons go here -->
+<div class="controls filter-controls" id="filterControls"></div>
 
 <button id="shutter" class="primary">●</button>
 
@@ -141,18 +194,29 @@ button.primary {
 const UPLOAD_URL =
 "https://script.google.com/macros/s/AKfycbxX9wMOWPLZrimEpvdojQsOh6ESW8kgBw3BK_qYX6VJC8s05tKgYS7BqrnULgrFS5zB/exec";
 
+const FILTERS = {
+  none: { name: "None", css: "none", overlay: "transparent", vignette: false },
+  warm: { name: "Warm", css: "sepia(0.3) saturate(1.4) contrast(1.1)", overlay: "rgba(255, 140, 0, 0.05)", vignette: true },
+  cool: { name: "Cool", css: "saturate(0.8)", overlay: "rgba(0, 100, 255, 0.1)", vignette: false },
+  vintage: { name: "Vintage", css: "sepia(0.6) contrast(1.2) brightness(0.9) saturate(1.2)", overlay: "transparent", vignette: true },
+  bw: { name: "B&W", css: "grayscale(1) contrast(1.2)", overlay: "transparent", vignette: true },
+  soft: { name: "Soft", css: "blur(1px) brightness(1.1) contrast(0.9)", overlay: "rgba(255, 255, 255, 0.1)", vignette: false }
+};
+
 /* ================= ELEMENTS ================= */
 const video = document.getElementById("video");
+const videoOverlay = document.getElementById("videoOverlay");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
+const flipBtn = document.getElementById("flipBtn");
 const photoBtn = document.getElementById("photoBtn");
 const videoBtn = document.getElementById("videoBtn");
 const shutter = document.getElementById("shutter");
 const uploadControls = document.getElementById("uploadControls");
 const uploadBtn = document.getElementById("uploadBtn");
 const statusMessage = document.getElementById("statusMessage");
-const filterButtons = document.querySelectorAll("[data-filter]");
+const filterControls = document.getElementById("filterControls");
 
 /* ================= STATE ================= */
 let stream = null;
@@ -160,7 +224,24 @@ let recorder = null;
 let chunks = [];
 let recordedBlob = null;
 let mode = "photo";
-let currentFilter = "warm";
+let facingMode = "environment";
+let currentFilter = "none";
+
+/* ================= UI INIT ================= */
+// Generate filter buttons dynamically
+Object.keys(FILTERS).forEach(key => {
+  const btn = document.createElement("button");
+  btn.textContent = FILTERS[key].name;
+  btn.onclick = () => {
+    currentFilter = key;
+    updatePreview();
+    // Update active UI state
+    document.querySelectorAll('#filterControls button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  };
+  filterControls.appendChild(btn);
+});
+filterControls.querySelector('button').classList.add('active'); // Set first active
 
 /* ================= CAMERA ================= */
 async function startCamera(audio = false) {
@@ -168,34 +249,65 @@ async function startCamera(audio = false) {
 
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
+      video: { facingMode: facingMode },
       audio
     });
     video.srcObject = stream;
-  } catch {
-    alert("Camera permission is required.");
+    
+    // Mirror the video if using the front camera
+    if (facingMode === "user") {
+      video.style.transform = "scaleX(-1)";
+    } else {
+      video.style.transform = "scaleX(1)";
+    }
+
+    statusMessage.classList.add("hidden");
+    updatePreview(); // Apply default filter on load
+  } catch (err) {
+    statusMessage.className = "error";
+    statusMessage.textContent = "📷 Camera permission is required.";
+    statusMessage.classList.remove("hidden");
   }
 }
 
 startCamera(false);
 
-/* ================= MODE ================= */
+/* ================= MODE & FLIP ================= */
+flipBtn.onclick = () => {
+  facingMode = facingMode === "environment" ? "user" : "environment";
+  startCamera(mode === "video");
+};
+
 photoBtn.onclick = () => {
   mode = "photo";
+  photoBtn.classList.add("active");
+  videoBtn.classList.remove("active");
   resetView();
   startCamera(false);
 };
 
 videoBtn.onclick = () => {
   mode = "video";
+  videoBtn.classList.add("active");
+  photoBtn.classList.remove("active");
   resetView();
   startCamera(true);
 };
 
-/* ================= FILTER ================= */
-filterButtons.forEach(btn => {
-  btn.onclick = () => currentFilter = btn.dataset.filter;
-});
+/* ================= REAL-TIME FILTERS ================= */
+function updatePreview() {
+  const f = FILTERS[currentFilter];
+  
+  // Apply CSS color corrections
+  video.style.filter = f.css;
+  
+  // Apply overlay (tints and vignettes)
+  let bg = `linear-gradient(${f.overlay}, ${f.overlay})`; // Solid tint
+  if (f.vignette) {
+    bg += `, radial-gradient(circle, transparent 40%, rgba(0,0,0,0.65) 120%)`;
+  }
+  videoOverlay.style.background = bg;
+}
 
 /* ================= SHUTTER ================= */
 shutter.onclick = () => {
@@ -205,56 +317,63 @@ shutter.onclick = () => {
 
 /* ================= PHOTO ================= */
 function takePhoto() {
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
 
-  ctx.drawImage(video, 0, 0);
-  applyFilter();
+  const f = FILTERS[currentFilter];
+
+  // 1. Mirror Context if front camera so saved image is correct
+  if (facingMode === "user") {
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+  }
+
+  // 2. Apply base CSS filters to Canvas
+  ctx.filter = f.css;
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  
+  // 3. Reset transform & filter so overlays/text apply normally
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.filter = "none";
+
+  // 4. Apply Tints & Vignette on top of the image
+  if (f.overlay !== 'transparent') {
+    ctx.fillStyle = f.overlay;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  if (f.vignette) {
+    const v = ctx.createRadialGradient(
+      canvas.width/2, canvas.height/2, canvas.width/4,
+      canvas.width/2, canvas.height/2, canvas.width
+    );
+    v.addColorStop(0, "rgba(0,0,0,0)");
+    v.addColorStop(1, "rgba(0,0,0,0.65)");
+    ctx.fillStyle = v;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // 5. Draw Date stamp
   drawDate();
 
+  // Swap UI
   video.classList.add("hidden");
+  videoOverlay.classList.add("hidden");
   canvas.classList.remove("hidden");
   uploadControls.classList.remove("hidden");
 }
 
-function applyFilter() {
-  if (currentFilter === "warm") {
-    ctx.fillStyle = "rgba(255,180,130,0.12)";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-  }
-
-  if (currentFilter === "grain") {
-    ctx.globalAlpha = 0.15;
-    for (let i = 0; i < 2500; i++) {
-      ctx.fillStyle = `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
-      ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 1, 1);
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  if (currentFilter === "soft") {
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-  }
-
-  const v = ctx.createRadialGradient(
-    canvas.width/2, canvas.height/2, canvas.width/4,
-    canvas.width/2, canvas.height/2, canvas.width/1.1
-  );
-  v.addColorStop(0,"rgba(0,0,0,0)");
-  v.addColorStop(1,"rgba(0,0,0,0.45)");
-  ctx.fillStyle = v;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-}
-
 function drawDate() {
-  ctx.font = "16px monospace";
+  ctx.font = "bold 18px monospace";
   ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.shadowColor = "rgba(0,0,0,0.5)";
+  ctx.shadowBlur = 4;
   ctx.fillText(
     new Date().toLocaleDateString(),
-    canvas.width - 120,
-    canvas.height - 20
+    canvas.width - 130,
+    canvas.height - 25
   );
+  ctx.shadowBlur = 0; // reset
 }
 
 /* ================= VIDEO ================= */
@@ -262,8 +381,13 @@ function recordVideo() {
   chunks = [];
   recorder = new MediaRecorder(stream);
   recorder.start();
+  
+  shutter.style.opacity = '0.5';
 
-  setTimeout(() => recorder.stop(), 6000);
+  setTimeout(() => {
+    if (recorder.state === "recording") recorder.stop();
+    shutter.style.opacity = '1';
+  }, 6000);
 
   recorder.ondataavailable = e => chunks.push(e.data);
   recorder.onstop = () => {
@@ -272,7 +396,7 @@ function recordVideo() {
   };
 }
 
-/* ================= UPLOAD (HANG-PROOF) ================= */
+/* ================= UPLOAD ================= */
 uploadBtn.onclick = async () => {
   uploadBtn.disabled = true;
   statusMessage.className = "loading";
@@ -301,11 +425,11 @@ uploadBtn.onclick = async () => {
     });
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort(), 30000); 
 
     const res = await fetch(UPLOAD_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       signal: controller.signal,
       body: JSON.stringify({
         file: base64,
@@ -318,7 +442,6 @@ uploadBtn.onclick = async () => {
 
     if (!res.ok) throw new Error("Server error");
 
-    // 🔑 DO NOT PARSE JSON — THIS PREVENTS HANGING
     await res.text();
 
     statusMessage.className = "success";
@@ -341,13 +464,13 @@ uploadBtn.onclick = async () => {
   }
 };
 
-
 /* ================= RESET ================= */
 function resetView() {
   uploadControls.classList.add("hidden");
   statusMessage.classList.add("hidden");
   canvas.classList.add("hidden");
   video.classList.remove("hidden");
+  videoOverlay.classList.remove("hidden");
   uploadBtn.disabled = false;
 }
 </script>
