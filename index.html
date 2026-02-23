@@ -79,7 +79,6 @@ video, canvas {
   background: white;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.1s ease-out;
   z-index: 10;
 }
 
@@ -279,6 +278,16 @@ async function startCamera(audio = false) {
       video.style.transform = "scaleX(1)";
     }
 
+    // Attempt to re-apply hardware torch if enabled and supported
+    const track = stream.getVideoTracks()[0];
+    if (flashEnabled && typeof track.getCapabilities === "function") {
+      const caps = track.getCapabilities();
+      if (caps.torch) {
+        try { await track.applyConstraints({ advanced: [{ torch: true }] }); }
+        catch (e) { console.warn("Could not activate hardware torch", e); }
+      }
+    }
+
     statusMessage.classList.add("hidden");
     updatePreview(); // Apply default filter on load
   } catch (err) {
@@ -291,13 +300,29 @@ async function startCamera(audio = false) {
 startCamera(false);
 
 /* ================= MODE & FLIP ================= */
-flashBtn.onclick = () => {
+flashBtn.onclick = async () => {
   flashEnabled = !flashEnabled;
   flashBtn.textContent = flashEnabled ? "⚡ Flash: ON" : "⚡ Flash: OFF";
+  
   if (flashEnabled) {
     flashBtn.classList.add("active");
   } else {
     flashBtn.classList.remove("active");
+  }
+
+  // Try to toggle the hardware LED torch instantly
+  if (stream) {
+    const track = stream.getVideoTracks()[0];
+    if (typeof track.getCapabilities === "function") {
+      const caps = track.getCapabilities();
+      if (caps.torch) {
+        try {
+          await track.applyConstraints({ advanced: [{ torch: flashEnabled }] });
+        } catch (e) {
+          console.warn("Could not toggle hardware torch", e);
+        }
+      }
+    }
   }
 };
 
@@ -346,13 +371,30 @@ shutter.onclick = () => {
 /* ================= PHOTO ================= */
 function takePhoto() {
   if (flashEnabled) {
-    // Visual screen flash effect
+    // 1. Instantly trigger the visual screen flash (remove transition to make it snap instantly)
+    flashOverlay.style.transition = "none";
     flashOverlay.style.opacity = "1";
-    setTimeout(() => {
-      flashOverlay.style.opacity = "0";
-    }, 150);
+    
+    // 2. Double requestAnimationFrame forces the browser to actually paint the white screen
+    // to the display before moving on to taking the picture
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // Wait 200ms to allow the physical screen light to illuminate the subject's face
+        setTimeout(() => {
+          captureFrame();
+          // Fade out the flash
+          flashOverlay.style.transition = "opacity 0.4s ease-out";
+          flashOverlay.style.opacity = "0";
+        }, 200); 
+      });
+    });
+  } else {
+    // If flash is off, take photo immediately
+    captureFrame();
   }
+}
 
+function captureFrame() {
   canvas.width = video.videoWidth || 640;
   canvas.height = video.videoHeight || 480;
 
