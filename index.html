@@ -70,6 +70,19 @@ video, canvas {
   transition: background 0.3s ease;
 }
 
+#flashOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: white;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease-out;
+  z-index: 10;
+}
+
 /* ===== CONTROLS ===== */
 .controls {
   display: flex;
@@ -167,6 +180,7 @@ button.primary {
 </header>
 
 <div class="controls">
+  <button id="flashBtn">⚡ Flash: OFF</button>
   <button id="flipBtn">🔄 Flip</button>
   <button id="photoBtn" class="active">📸 Photo</button>
   <button id="videoBtn">🎥 Video</button>
@@ -175,6 +189,7 @@ button.primary {
 <div class="view-container">
   <video id="video" autoplay playsinline></video>
   <div id="videoOverlay"></div>
+  <div id="flashOverlay"></div>
   <canvas id="canvas" class="hidden"></canvas>
 </div>
 
@@ -206,9 +221,11 @@ const FILTERS = {
 /* ================= ELEMENTS ================= */
 const video = document.getElementById("video");
 const videoOverlay = document.getElementById("videoOverlay");
+const flashOverlay = document.getElementById("flashOverlay");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
+const flashBtn = document.getElementById("flashBtn");
 const flipBtn = document.getElementById("flipBtn");
 const photoBtn = document.getElementById("photoBtn");
 const videoBtn = document.getElementById("videoBtn");
@@ -226,6 +243,7 @@ let recordedBlob = null;
 let mode = "photo";
 let facingMode = "environment";
 let currentFilter = "none";
+let flashEnabled = false;
 
 /* ================= UI INIT ================= */
 // Generate filter buttons dynamically
@@ -273,6 +291,16 @@ async function startCamera(audio = false) {
 startCamera(false);
 
 /* ================= MODE & FLIP ================= */
+flashBtn.onclick = () => {
+  flashEnabled = !flashEnabled;
+  flashBtn.textContent = flashEnabled ? "⚡ Flash: ON" : "⚡ Flash: OFF";
+  if (flashEnabled) {
+    flashBtn.classList.add("active");
+  } else {
+    flashBtn.classList.remove("active");
+  }
+};
+
 flipBtn.onclick = () => {
   facingMode = facingMode === "environment" ? "user" : "environment";
   startCamera(mode === "video");
@@ -317,6 +345,14 @@ shutter.onclick = () => {
 
 /* ================= PHOTO ================= */
 function takePhoto() {
+  if (flashEnabled) {
+    // Visual screen flash effect
+    flashOverlay.style.opacity = "1";
+    setTimeout(() => {
+      flashOverlay.style.opacity = "0";
+    }, 150);
+  }
+
   canvas.width = video.videoWidth || 640;
   canvas.height = video.videoHeight || 480;
 
