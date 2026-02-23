@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-<title>SNAPBACK Lite</title>
+<title>SNAPBACK Event Edition</title>
 
 <style>
 :root {
@@ -48,6 +48,8 @@ h1 {
   position: relative;
   width: 100%;
   max-width: 420px;
+  /* Maintain a standard 4:3 aspect ratio container */
+  aspect-ratio: 3/4; 
   border-radius: 12px;
   overflow: hidden;
   background: black;
@@ -57,6 +59,8 @@ h1 {
 
 video, canvas {
   width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
 }
 
@@ -66,8 +70,45 @@ video, canvas {
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none; /* Allows clicking through to video if needed */
+  pointer-events: none;
   transition: background 0.3s ease;
+  z-index: 2;
+}
+
+/* ===== EVENT TEMPLATE OVERLAY ===== */
+#templateOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  
+  /* Creates the Polaroid Frame Look */
+  border: 15px solid white;
+  border-bottom-width: 80px; 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 20px;
+}
+
+.event-title {
+  color: black;
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: 1px;
+  margin: 0
+  text-transform: uppercase;
+}
+
+.event-subtitle {
+  color: #555;
+  font-size: 12px;
+  margin-top: 2px;
+  letter-spacing: 2px;
 }
 
 #flashOverlay {
@@ -98,11 +139,11 @@ video, canvas {
   overflow-x: auto;
   padding: 0 15px 10px 15px;
   justify-content: flex-start;
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 .filter-controls::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
+  display: none;
 }
 
 button {
@@ -187,7 +228,16 @@ button.primary {
 
 <div class="view-container">
   <video id="video" autoplay playsinline></video>
+  
+  <!-- Live Filter Tint -->
   <div id="videoOverlay"></div>
+  
+  <!-- Visual Event Frame Overlay -->
+  <div id="templateOverlay">
+    <div class="event-title" id="overlayTitle"></div>
+    <div class="event-subtitle" id="overlaySubtitle"></div>
+  </div>
+
   <div id="flashOverlay"></div>
   <canvas id="canvas" class="hidden"></canvas>
 </div>
@@ -198,16 +248,25 @@ button.primary {
 <button id="shutter" class="primary">●</button>
 
 <div class="controls hidden" id="uploadControls">
-  <button id="uploadBtn">Upload</button>
+  <button id="uploadBtn">Upload to Gallery</button>
+  <button id="retakeBtn">Retake</button>
 </div>
 
 <div id="statusMessage" class="hidden"></div>
 
 <script>
-/* ================= CONFIG ================= */
-const UPLOAD_URL =
-"https://script.google.com/macros/s/AKfycbxX9wMOWPLZrimEpvdojQsOh6ESW8kgBw3BK_qYX6VJC8s05tKgYS7BqrnULgrFS5zB/exec";
+/* ================= EVENT CONFIG ================= */
+// Change these values for your specific event!
+const EVENT_NAME = "Eighteen by Elijah Mae";
+const EVENT_DATE = "La Union • 2026";
 
+const UPLOAD_URL = "https://script.google.com/macros/s/AKfycbxX9wMOWPLZrimEpvdojQsOh6ESW8kgBw3BK_qYX6VJC8s05tKgYS7BqrnULgrFS5zB/exec";
+
+/* Set visual text on the live template */
+document.getElementById('overlayTitle').textContent = EVENT_NAME;
+document.getElementById('overlaySubtitle').textContent = EVENT_DATE;
+
+/* ================= FILTERS ================= */
 const FILTERS = {
   none: { name: "None", css: "none", overlay: "transparent", vignette: false },
   warm: { name: "Warm", css: "sepia(0.3) saturate(1.4) contrast(1.1)", overlay: "rgba(255, 140, 0, 0.05)", vignette: true },
@@ -220,6 +279,7 @@ const FILTERS = {
 /* ================= ELEMENTS ================= */
 const video = document.getElementById("video");
 const videoOverlay = document.getElementById("videoOverlay");
+const templateOverlay = document.getElementById("templateOverlay");
 const flashOverlay = document.getElementById("flashOverlay");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -231,6 +291,7 @@ const videoBtn = document.getElementById("videoBtn");
 const shutter = document.getElementById("shutter");
 const uploadControls = document.getElementById("uploadControls");
 const uploadBtn = document.getElementById("uploadBtn");
+const retakeBtn = document.getElementById("retakeBtn");
 const statusMessage = document.getElementById("statusMessage");
 const filterControls = document.getElementById("filterControls");
 
@@ -245,20 +306,18 @@ let currentFilter = "none";
 let flashEnabled = false;
 
 /* ================= UI INIT ================= */
-// Generate filter buttons dynamically
 Object.keys(FILTERS).forEach(key => {
   const btn = document.createElement("button");
   btn.textContent = FILTERS[key].name;
   btn.onclick = () => {
     currentFilter = key;
     updatePreview();
-    // Update active UI state
     document.querySelectorAll('#filterControls button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
   };
   filterControls.appendChild(btn);
 });
-filterControls.querySelector('button').classList.add('active'); // Set first active
+filterControls.querySelector('button').classList.add('active');
 
 /* ================= CAMERA ================= */
 async function startCamera(audio = false) {
@@ -266,19 +325,17 @@ async function startCamera(audio = false) {
 
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facingMode },
+      video: { facingMode: facingMode, width: { ideal: 1080 }, height: { ideal: 1440 } },
       audio
     });
     video.srcObject = stream;
     
-    // Mirror the video if using the front camera
     if (facingMode === "user") {
       video.style.transform = "scaleX(-1)";
     } else {
       video.style.transform = "scaleX(1)";
     }
 
-    // Attempt to re-apply hardware torch if enabled and supported
     const track = stream.getVideoTracks()[0];
     if (flashEnabled && typeof track.getCapabilities === "function") {
       const caps = track.getCapabilities();
@@ -289,7 +346,7 @@ async function startCamera(audio = false) {
     }
 
     statusMessage.classList.add("hidden");
-    updatePreview(); // Apply default filter on load
+    updatePreview();
   } catch (err) {
     statusMessage.className = "error";
     statusMessage.textContent = "📷 Camera permission is required.";
@@ -303,24 +360,15 @@ startCamera(false);
 flashBtn.onclick = async () => {
   flashEnabled = !flashEnabled;
   flashBtn.textContent = flashEnabled ? "⚡ Flash: ON" : "⚡ Flash: OFF";
-  
-  if (flashEnabled) {
-    flashBtn.classList.add("active");
-  } else {
-    flashBtn.classList.remove("active");
-  }
+  flashBtn.classList.toggle("active", flashEnabled);
 
-  // Try to toggle the hardware LED torch instantly
   if (stream) {
     const track = stream.getVideoTracks()[0];
     if (typeof track.getCapabilities === "function") {
       const caps = track.getCapabilities();
       if (caps.torch) {
-        try {
-          await track.applyConstraints({ advanced: [{ torch: flashEnabled }] });
-        } catch (e) {
-          console.warn("Could not toggle hardware torch", e);
-        }
+        try { await track.applyConstraints({ advanced: [{ torch: flashEnabled }] }); } 
+        catch (e) {}
       }
     }
   }
@@ -335,6 +383,7 @@ photoBtn.onclick = () => {
   mode = "photo";
   photoBtn.classList.add("active");
   videoBtn.classList.remove("active");
+  templateOverlay.style.display = "flex"; // Show template for photos
   resetView();
   startCamera(false);
 };
@@ -343,6 +392,7 @@ videoBtn.onclick = () => {
   mode = "video";
   videoBtn.classList.add("active");
   photoBtn.classList.remove("active");
+  templateOverlay.style.display = "none"; // Hide template for video
   resetView();
   startCamera(true);
 };
@@ -350,15 +400,9 @@ videoBtn.onclick = () => {
 /* ================= REAL-TIME FILTERS ================= */
 function updatePreview() {
   const f = FILTERS[currentFilter];
-  
-  // Apply CSS color corrections
   video.style.filter = f.css;
-  
-  // Apply overlay (tints and vignettes)
-  let bg = `linear-gradient(${f.overlay}, ${f.overlay})`; // Solid tint
-  if (f.vignette) {
-    bg += `, radial-gradient(circle, transparent 40%, rgba(0,0,0,0.65) 120%)`;
-  }
+  let bg = `linear-gradient(${f.overlay}, ${f.overlay})`;
+  if (f.vignette) bg += `, radial-gradient(circle, transparent 40%, rgba(0,0,0,0.65) 120%)`;
   videoOverlay.style.background = bg;
 }
 
@@ -368,58 +412,49 @@ shutter.onclick = () => {
   else recordVideo();
 };
 
-/* ================= PHOTO ================= */
+/* ================= PHOTO & BURN WATERMARK ================= */
 function takePhoto() {
   if (flashEnabled) {
-    // 1. Instantly trigger the visual screen flash (remove transition to make it snap instantly)
     flashOverlay.style.transition = "none";
     flashOverlay.style.opacity = "1";
-    
-    // 2. Double requestAnimationFrame forces the browser to actually paint the white screen
-    // to the display before moving on to taking the picture
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        // Wait 200ms to allow the physical screen light to illuminate the subject's face
         setTimeout(() => {
           captureFrame();
-          // Fade out the flash
           flashOverlay.style.transition = "opacity 0.4s ease-out";
           flashOverlay.style.opacity = "0";
         }, 200); 
       });
     });
   } else {
-    // If flash is off, take photo immediately
     captureFrame();
   }
 }
 
 function captureFrame() {
+  // Use actual video dimensions
   canvas.width = video.videoWidth || 640;
   canvas.height = video.videoHeight || 480;
 
   const f = FILTERS[currentFilter];
 
-  // 1. Mirror Context if front camera so saved image is correct
+  // 1. Draw Camera Feed
   if (facingMode === "user") {
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
   }
-
-  // 2. Apply base CSS filters to Canvas
   ctx.filter = f.css;
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   
-  // 3. Reset transform & filter so overlays/text apply normally
+  // Reset context
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.filter = "none";
 
-  // 4. Apply Tints & Vignette on top of the image
+  // 2. Draw Filter Overlays
   if (f.overlay !== 'transparent') {
     ctx.fillStyle = f.overlay;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
-
   if (f.vignette) {
     const v = ctx.createRadialGradient(
       canvas.width/2, canvas.height/2, canvas.width/4,
@@ -431,28 +466,65 @@ function captureFrame() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  // 5. Draw Date stamp
+  // 3. Draw Vintage Date (Moved up slightly to avoid bottom border)
   drawDate();
+
+  // 4. DRAW THE EVENT TEMPLATE (Polaroid Border)
+  // Calculate relative sizes based on actual canvas resolution
+  const topSideBorder = canvas.width * 0.04; // ~4% width for sides/top
+  const bottomBorder = canvas.height * 0.18; // ~18% height for the bottom text area
+
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, topSideBorder); // Top
+  ctx.fillRect(0, 0, topSideBorder, canvas.height); // Left
+  ctx.fillRect(canvas.width - topSideBorder, 0, topSideBorder, canvas.height); // Right
+  ctx.fillRect(0, canvas.height - bottomBorder, canvas.width, bottomBorder); // Bottom
+
+  // 5. DRAW THE EVENT WATERMARK TEXT
+  ctx.fillStyle = "black";
+  ctx.textAlign = "center";
+  
+  // Event Name
+  ctx.font = `900 ${canvas.width * 0.06}px sans-serif`;
+  ctx.fillText(EVENT_NAME.toUpperCase(), canvas.width / 2, canvas.height - (bottomBorder * 0.45));
+  
+  // Event Date
+  ctx.font = `600 ${canvas.width * 0.03}px sans-serif`;
+  ctx.fillStyle = "#555555";
+  ctx.fillText(EVENT_DATE, canvas.width / 2, canvas.height - (bottomBorder * 0.2));
 
   // Swap UI
   video.classList.add("hidden");
   videoOverlay.classList.add("hidden");
+  templateOverlay.style.display = "none"; // Hide live template, show canvas
+  shutter.classList.add("hidden");
   canvas.classList.remove("hidden");
   uploadControls.classList.remove("hidden");
 }
 
 function drawDate() {
-  ctx.font = "bold 18px monospace";
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.font = "bold 24px monospace";
+  ctx.fillStyle = "rgba(255,150,50,0.9)"; // Vintage orange/red date
   ctx.shadowColor = "rgba(0,0,0,0.5)";
   ctx.shadowBlur = 4;
+  
+  // Adjust position to sit right above the bottom white border
+  const bottomBorder = canvas.height * 0.18;
+  const rightBorder = canvas.width * 0.04;
+  
   ctx.fillText(
     new Date().toLocaleDateString(),
-    canvas.width - 130,
-    canvas.height - 25
+    canvas.width - rightBorder - 160,
+    canvas.height - bottomBorder - 20
   );
   ctx.shadowBlur = 0; // reset
 }
+
+/* ================= RETAKE ================= */
+retakeBtn.onclick = () => {
+  resetView();
+  startCamera(false);
+};
 
 /* ================= VIDEO ================= */
 function recordVideo() {
@@ -470,6 +542,7 @@ function recordVideo() {
   recorder.ondataavailable = e => chunks.push(e.data);
   recorder.onstop = () => {
     recordedBlob = new Blob(chunks, { type: "video/mp4" });
+    shutter.classList.add("hidden");
     uploadControls.classList.remove("hidden");
   };
 }
@@ -477,8 +550,9 @@ function recordVideo() {
 /* ================= UPLOAD ================= */
 uploadBtn.onclick = async () => {
   uploadBtn.disabled = true;
+  retakeBtn.disabled = true;
   statusMessage.className = "loading";
-  statusMessage.textContent = "Uploading…";
+  statusMessage.textContent = "Uploading to gallery…";
   statusMessage.classList.remove("hidden");
 
   try {
@@ -539,6 +613,7 @@ uploadBtn.onclick = async () => {
         ? "❌ Upload timed out. Please try again."
         : "❌ Upload failed. Please try again.";
     uploadBtn.disabled = false;
+    retakeBtn.disabled = false;
   }
 };
 
@@ -549,7 +624,14 @@ function resetView() {
   canvas.classList.add("hidden");
   video.classList.remove("hidden");
   videoOverlay.classList.remove("hidden");
+  shutter.classList.remove("hidden");
+  
+  if(mode === "photo") {
+    templateOverlay.style.display = "flex";
+  }
+  
   uploadBtn.disabled = false;
+  retakeBtn.disabled = false;
 }
 </script>
 
