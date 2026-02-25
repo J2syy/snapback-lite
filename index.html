@@ -90,35 +90,35 @@ h1 {
   position: relative;
   width: 100%;
   max-width: 420px;
-  flex: 1; /* Allow it to grow when controls are hidden */
-  min-height: 0; /* Important for flex child to shrink properly */
+  flex: 1; /* Automatically grows to fill available vertical space */
+  min-height: 0; 
   border-radius: var(--radius);
-  overflow: hidden;
   background: #000;
   box-shadow: var(--shadow);
   margin-bottom: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 5px; /* Tiny padding to show black edge */
+  padding: 12px; 
 }
 
-/* The physical canvas that the user sees in real time */
+/* BULLETPROOF SIZING TRICK */
 #livePrintOut {
+  /* Forcing a huge base width allows it to grow perfectly into its max-width/height boundaries */
+  width: 2000px; 
   max-width: 100%;
   max-height: 100%;
   background: var(--theme-color);
   display: flex;
   flex-direction: column;
-  padding: 4%;
   box-sizing: border-box;
   transition: background 0.3s ease, aspect-ratio 0.3s ease;
+  container-type: inline-size;
 }
 
 #liveGrid {
   flex: 1;
   display: grid;
-  gap: 4%;
   min-height: 0; 
 }
 
@@ -130,12 +130,11 @@ h1 {
   border-radius: 4px;
 }
 
-/* PERFECT CROPPING FOR LIVE PREVIEW */
 .grid-slot video, .grid-slot img {
   position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  object-fit: cover; /* This crops the video perfectly in the DOM */
+  object-fit: cover; 
   z-index: 1;
 }
 
@@ -149,13 +148,15 @@ h1 {
 
 #liveText {
   text-align: center;
-  padding-top: 4%;
-  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .event-title {
   font-weight: 900;
-  font-size: 18px;
+  font-size: 5cqi; /* 5% of container width */
   letter-spacing: 1px;
   margin: 0;
   text-transform: uppercase;
@@ -163,7 +164,7 @@ h1 {
 }
 
 .event-subtitle {
-  font-size: 10px;
+  font-size: 2.5cqi; /* 2.5% of container width */
   margin-top: 2px;
   font-weight: 600;
   letter-spacing: 2px;
@@ -240,11 +241,11 @@ h1 {
 .toggle-menu-btn {
   background: transparent;
   border: none;
-  font-size: 12px;
-  font-weight: bold;
+  font-size: 11px;
+  font-weight: 800;
   color: var(--dark);
   cursor: pointer;
-  padding: 5px;
+  padding: 6px;
   text-transform: uppercase;
   letter-spacing: 1px;
   opacity: 0.6;
@@ -255,15 +256,15 @@ h1 {
   flex-wrap: nowrap;
   overflow-x: auto;
   gap: 8px;
-  padding-bottom: 5px;
+  padding-bottom: 2px;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 .scroll-row::-webkit-scrollbar { display: none; }
 
 .row-label {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 800;
   color: #888;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -272,11 +273,11 @@ h1 {
 }
 
 button.opt-btn {
-  padding: 8px 16px;
+  padding: 6px 14px;
   border-radius: 16px;
   border: 1px solid transparent;
   background: rgba(255,255,255,0.8);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -301,16 +302,17 @@ button.opt-btn.active {
 .icon-btn {
   background: white;
   border: none;
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  font-size: 20px;
+  font-size: 18px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.06);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 .icon-btn.active {
   background: #ffeb3b;
@@ -318,8 +320,9 @@ button.opt-btn.active {
 }
 
 button.shutter {
-  width: 76px;
-  height: 76px;
+  width: 70px;
+  height: 70px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: var(--accent);
   border: 4px solid white;
@@ -518,7 +521,6 @@ const ADMIN_PIN = "1234";
 let capturedPhotos = []; 
 
 /* ================= CONFIGURATIONS ================= */
-// ADDED CROP TYPE: Grids are perfect squares, Strips are portraits
 const LAYOUTS = {
   single: { name: "1 Photo", count: 1, cols: 1, rows: 1, crop: 'portrait' },
   grid2:  { name: "2 Grid",  count: 2, cols: 2, rows: 1, crop: 'square' },
@@ -551,7 +553,7 @@ const FILTERS = {
   sepia:   { name: "Sepia", css: "sepia(0.8) contrast(1.1)", overlay: "transparent", vignette: true }
 };
 
-let currentLayoutKey = "strip4";
+let currentLayoutKey = "single";
 let currentFrameKey = "polaroid";
 let currentFilterKey = "none";
 
@@ -568,6 +570,7 @@ const livePrintOut = document.getElementById("livePrintOut");
 const liveGrid = document.getElementById("liveGrid");
 const overlayTitle = document.getElementById("overlayTitle");
 const overlaySubtitle = document.getElementById("overlaySubtitle");
+const liveText = document.getElementById("liveText");
 
 const layoutControls = document.getElementById("layoutControls");
 const themeControls = document.getElementById("themeControls");
@@ -704,13 +707,15 @@ function applyLiveFilter() {
 
 function applyLayout() {
   const layout = LAYOUTS[currentLayoutKey];
+
+  // Rescue the video feed before destroying the grid so the camera doesn't pause!
+  const viewContainer = document.getElementById("viewContainer");
+  if (video.parentNode !== viewContainer) viewContainer.appendChild(video);
+  if (videoOverlay.parentNode !== viewContainer) viewContainer.appendChild(videoOverlay);
+
   liveGrid.innerHTML = ''; 
   
-  // Set the CSS Grid dimensions
-  liveGrid.style.gridTemplateColumns = `repeat(${layout.cols}, 1fr)`;
-  liveGrid.style.gridTemplateRows = `repeat(${layout.rows}, 1fr)`;
-
-  // Dynamically size the live preview area so it matches the real aspect ratio
+  // High-Res Print Dimensions
   const pW = 720;
   const pH = layout.crop === 'square' ? 720 : 960;
   const gap = 30;
@@ -719,9 +724,24 @@ function applyLayout() {
 
   const totalW = (outerPad * 2) + (pW * layout.cols) + (gap * (layout.cols - 1));
   const totalH = outerPad + bottomSpace + (pH * layout.rows) + (gap * (layout.rows - 1));
+  
+  // Enforce perfect aspect ratio visually 
   livePrintOut.style.aspectRatio = `${totalW} / ${totalH}`;
 
-  // Create empty slots
+  // Native, foolproof CSS variable padding using CQI (Container Query Inline)
+  const padCqi = (outerPad / totalW) * 100;
+  const gapCqi = (gap / totalW) * 100;
+  const bottomCqi = (bottomSpace / totalW) * 100;
+
+  livePrintOut.style.padding = `${padCqi}cqi ${padCqi}cqi 0 ${padCqi}cqi`;
+  liveGrid.style.gap = `${gapCqi}cqi`;
+  
+  liveText.style.height = `${bottomCqi}cqi`;
+  liveText.style.flex = `0 0 ${bottomCqi}cqi`;
+
+  liveGrid.style.gridTemplateColumns = `repeat(${layout.cols}, 1fr)`;
+  liveGrid.style.gridTemplateRows = `repeat(${layout.rows}, 1fr)`;
+
   for (let i = 0; i < layout.count; i++) {
     const slot = document.createElement('div');
     slot.className = 'grid-slot';
@@ -729,7 +749,6 @@ function applyLayout() {
     liveGrid.appendChild(slot);
   }
 
-  // Inject the live video feed and overlay into Slot 0
   const firstSlot = document.getElementById('slot-0');
   if (firstSlot) {
     video.classList.remove('hidden');
@@ -797,7 +816,6 @@ shutterBtn.onclick = async () => {
   const layout = LAYOUTS[currentLayoutKey];
   capturedPhotos = [];
   
-  // Disable UI during sequence
   shutterBtn.disabled = true;
   mainControls.style.opacity = "0.4";
   mainControls.style.pointerEvents = "none";
@@ -818,26 +836,26 @@ shutterBtn.onclick = async () => {
       await sleep(150);
     }
 
-    // Capture the frame properly cropped
     const frameCanvas = grabSingleFrame(layout);
     capturedPhotos.push(frameCanvas);
 
-    // 1. Create a physical image element from the frame
     const img = document.createElement("img");
     img.src = frameCanvas.toDataURL("image/jpeg", 0.85);
 
-    // 2. Remove the live video from the current slot, replace with the image
     const currentSlot = document.getElementById(`slot-${i}`);
-    currentSlot.removeChild(video);
-    currentSlot.removeChild(videoOverlay);
+    
+    // Safety check - put image precisely in current slot covering video
     currentSlot.appendChild(img);
 
-    // 3. Jump the live video forward to the NEXT slot
+    // Jump video to next slot cleanly
     if (i + 1 < layout.count) {
       const nextSlot = document.getElementById(`slot-${i + 1}`);
       nextSlot.appendChild(video);
       nextSlot.appendChild(videoOverlay);
       await sleep(500); 
+    } else {
+      video.classList.add('hidden');
+      videoOverlay.classList.add('hidden');
     }
   }
 
@@ -849,7 +867,7 @@ shutterBtn.onclick = async () => {
   uploadControls.classList.remove("hidden");
 };
 
-/* PERFECT CENTER CROP MATH */
+/* ================= PERFECT CENTER CROP MATH ================= */
 function grabSingleFrame(layout) {
   const isSquare = layout.crop === 'square';
   const cW = 720;
@@ -867,7 +885,7 @@ function grabSingleFrame(layout) {
   
   octx.filter = FILTERS[currentFilterKey].css;
 
-  // Calculates a perfect center crop preventing any stretching
+  // Calculates a perfect center crop preventing any stretching or warping
   const vW = video.videoWidth || 1080;
   const vH = video.videoHeight || 1440;
   const vRatio = vW / vH;
@@ -907,7 +925,7 @@ function grabSingleFrame(layout) {
 function buildComposition(photos, layout) {
   const frame = FRAMES[currentFrameKey];
   const pW = 720;
-  const pH = layout.crop === 'square' ? 720 : 960; // Output matches layout shape
+  const pH = layout.crop === 'square' ? 720 : 960; 
   const gap = 30;
   const outerPad = 40;
   const bottomSpace = 280; 
@@ -933,8 +951,8 @@ function buildComposition(photos, layout) {
 
   ctx.textAlign = "center";
   ctx.fillStyle = frame.textCol;
-  const textY = canvas.height - (bottomSpace * 0.45);
   
+  const textY = canvas.height - (bottomSpace * 0.45);
   ctx.font = `900 ${canvas.width * 0.05}px sans-serif`;
   ctx.fillText(EVENT_NAME.toUpperCase(), canvas.width / 2, textY);
   
