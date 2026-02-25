@@ -531,8 +531,8 @@ button.shutter:disabled { opacity: 0.5; cursor: not-allowed; }
 
 <script>
 /* ================= GLOBAL STATE ================= */
-let EVENT_NAME = "My Photobooth";
-let EVENT_DATE = "Capture the moment";
+let EVENT_NAME = localStorage.getItem("snapback_event_name") || "My Photobooth";
+let EVENT_DATE = localStorage.getItem("snapback_event_date") || "Capture the moment";
 const UPLOAD_URL = "https://script.google.com/macros/s/AKfycbxX9wMOWPLZrimEpvdojQsOh6ESW8kgBw3BK_qYX6VJC8s05tKgYS7BqrnULgrFS5zB/exec";
 
 let stream = null;
@@ -718,6 +718,11 @@ loginBtn.onclick = () => {
 saveAdminBtn.onclick = () => {
   EVENT_NAME = inputTitle.value.trim() || "My Photobooth";
   EVENT_DATE = inputSubtitle.value.trim() || "Capture the moment";
+  
+  // Save settings persistently
+  localStorage.setItem("snapback_event_name", EVENT_NAME);
+  localStorage.setItem("snapback_event_date", EVENT_DATE);
+  
   applyAdminText();
   adminModal.classList.remove('active');
 };
