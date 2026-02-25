@@ -47,6 +47,7 @@ header {
   justify-content: space-between;
   align-items: center;
   padding: 0 10px;
+  flex-shrink: 0;
 }
 
 .brand {
@@ -89,26 +90,29 @@ h1 {
   position: relative;
   width: 100%;
   max-width: 420px;
-  height: 62vh; /* Scalable height to fit long strips naturally */
-  min-height: 400px;
-  max-height: 650px;
+  flex: 1; /* Allow it to grow when controls are hidden */
+  min-height: 0; /* Important for flex child to shrink properly */
   border-radius: var(--radius);
   overflow: hidden;
   background: #000;
   box-shadow: var(--shadow);
   margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px; /* Tiny padding to show black edge */
 }
 
 /* The physical canvas that the user sees in real time */
 #livePrintOut {
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   background: var(--theme-color);
   display: flex;
   flex-direction: column;
   padding: 4%;
   box-sizing: border-box;
-  transition: background 0.3s ease;
+  transition: background 0.3s ease, aspect-ratio 0.3s ease;
 }
 
 #liveGrid {
@@ -119,23 +123,22 @@ h1 {
 }
 
 .grid-slot {
-  background: rgba(0,0,0,0.1); /* Dark placeholder for empty slots */
+  background: rgba(0,0,0,0.1); 
   position: relative;
   border: 1px solid rgba(0,0,0,0.05);
   overflow: hidden;
   border-radius: 4px;
 }
 
-/* All video and captured images perfectly fill their slots */
+/* PERFECT CROPPING FOR LIVE PREVIEW */
 .grid-slot video, .grid-slot img {
   position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  object-fit: cover;
+  object-fit: cover; /* This crops the video perfectly in the DOM */
   z-index: 1;
 }
 
-/* The filter tint wrapper specifically for the live video */
 #videoOverlay {
   position: absolute;
   top: 0; left: 0; width: 100%; height: 100%;
@@ -213,13 +216,38 @@ h1 {
   background: var(--surface);
   backdrop-filter: var(--surface-blur);
   border-radius: var(--radius);
-  padding: 15px 10px;
+  padding: 12px 10px;
   box-shadow: var(--shadow);
   border: 1px solid rgba(255,255,255,0.5);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   transition: opacity 0.3s ease;
+  flex-shrink: 0;
+}
+
+.options-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.3s ease;
+}
+
+.options-menu.collapsed {
+  display: none;
+}
+
+.toggle-menu-btn {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--dark);
+  cursor: pointer;
+  padding: 5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.6;
 }
 
 .scroll-row {
@@ -369,6 +397,7 @@ button.shutter:disabled { opacity: 0.5; cursor: not-allowed; }
   width: 100%;
   max-width: 420px;
   margin-top: 15px;
+  flex-shrink: 0;
 }
 #uploadControls button {
   flex: 1;
@@ -407,13 +436,11 @@ button.shutter:disabled { opacity: 0.5; cursor: not-allowed; }
     <h1>SNAPBACK</h1>
     <div class="tagline">Event Photo Booth</div>
   </div>
-  <!-- Hidden Admin Trigger -->
   <button class="admin-btn" id="openAdminBtn" title="Admin Settings">⚙️</button>
 </header>
 
 <div class="view-container" id="viewContainer">
   
-  <!-- The physical live container showing the evolving grid -->
   <div id="livePrintOut">
     <div id="liveGrid"></div>
     <div id="liveText">
@@ -426,27 +453,26 @@ button.shutter:disabled { opacity: 0.5; cursor: not-allowed; }
   <div id="countdownOverlay" class="hidden">3</div>
   <div id="flashOverlay"></div>
   
-  <!-- Hidden elements used for rendering/streaming -->
   <canvas id="canvas" class="hidden"></canvas>
-  <!-- These will be attached to slots dynamically via JS -->
   <video id="video" autoplay playsinline class="hidden"></video>
   <div id="videoOverlay" class="hidden"></div>
 </div>
 
 <div class="control-panel" id="mainControls">
-  <!-- Layout Row (Guests choose grid type) -->
-  <div class="row-label">📐 Layout</div>
-  <div class="scroll-row" id="layoutControls"></div>
+  
+  <button class="toggle-menu-btn" id="toggleMenuBtn">🔽 Hide Options</button>
+  
+  <div id="optionsMenu" class="options-menu">
+    <div class="row-label">📐 Layout</div>
+    <div class="scroll-row" id="layoutControls"></div>
 
-  <!-- Theme Row (Guests choose border colors) -->
-  <div class="row-label">🖼️ Theme</div>
-  <div class="scroll-row" id="themeControls"></div>
+    <div class="row-label">🖼️ Theme</div>
+    <div class="scroll-row" id="themeControls"></div>
 
-  <!-- Filters Row (Guests choose live color grading) -->
-  <div class="row-label">🎨 Filters</div>
-  <div class="scroll-row" id="filterControls"></div>
+    <div class="row-label">🎨 Filters</div>
+    <div class="scroll-row" id="filterControls"></div>
+  </div>
 
-  <!-- Action Row -->
   <div class="action-row">
     <button class="icon-btn" id="flashBtn" title="Toggle Flash">⚡</button>
     <button class="shutter" id="shutter"></button>
@@ -461,18 +487,15 @@ button.shutter:disabled { opacity: 0.5; cursor: not-allowed; }
 
 <div id="statusMessage" class="hidden"></div>
 
-<!-- Admin Modal (For text only) -->
 <div class="modal-overlay" id="adminModal">
   <div class="modal-content">
     <h3>⚙️ Admin Config</h3>
     
-    <!-- Login Step -->
     <div id="adminLoginView">
       <input type="password" id="adminPin" placeholder="Enter PIN" inputmode="numeric">
       <button class="btn-primary" id="loginBtn">Unlock Settings</button>
     </div>
 
-    <!-- Settings Step -->
     <div id="adminSettingsView" class="hidden">
       <input type="text" id="inputTitle" placeholder="Event Name" maxlength="25">
       <input type="text" id="inputSubtitle" placeholder="Event Subtitle" maxlength="35">
@@ -490,19 +513,21 @@ const UPLOAD_URL = "https://script.google.com/macros/s/AKfycbxX9wMOWPLZrimEpvdoj
 let stream = null;
 let facingMode = "environment";
 let flashEnabled = false;
+let optionsOpen = true;
 const ADMIN_PIN = "1234"; 
-let capturedPhotos = []; // Holds canvas frames during sequence
+let capturedPhotos = []; 
 
 /* ================= CONFIGURATIONS ================= */
+// ADDED CROP TYPE: Grids are perfect squares, Strips are portraits
 const LAYOUTS = {
-  single: { name: "1 Photo", count: 1, cols: 1, rows: 1 },
-  grid2:  { name: "2 Grid",  count: 2, cols: 2, rows: 1 },
-  strip2: { name: "2 Strip", count: 2, cols: 1, rows: 2 },
-  strip3: { name: "3 Strip", count: 3, cols: 1, rows: 3 },
-  strip4: { name: "4 Strip", count: 4, cols: 1, rows: 4 },
-  grid4:  { name: "4 Grid",  count: 4, cols: 2, rows: 2 },
-  strip8: { name: "8 Strip", count: 8, cols: 1, rows: 8 },
-  grid8:  { name: "8 Grid",  count: 8, cols: 2, rows: 4 }
+  single: { name: "1 Photo", count: 1, cols: 1, rows: 1, crop: 'portrait' },
+  grid2:  { name: "2 Grid",  count: 2, cols: 2, rows: 1, crop: 'square' },
+  strip2: { name: "2 Strip", count: 2, cols: 1, rows: 2, crop: 'portrait' },
+  strip3: { name: "3 Strip", count: 3, cols: 1, rows: 3, crop: 'portrait' },
+  strip4: { name: "4 Strip", count: 4, cols: 1, rows: 4, crop: 'portrait' },
+  grid4:  { name: "4 Grid",  count: 4, cols: 2, rows: 2, crop: 'square' },
+  strip8: { name: "8 Strip", count: 8, cols: 1, rows: 8, crop: 'portrait' },
+  grid8:  { name: "8 Grid",  count: 8, cols: 2, rows: 4, crop: 'square' }
 };
 
 const FRAMES = {
@@ -526,7 +551,6 @@ const FILTERS = {
   sepia:   { name: "Sepia", css: "sepia(0.8) contrast(1.1)", overlay: "transparent", vignette: true }
 };
 
-// Using strip4 instead of strip to match the updated LAYOUTS dictionary
 let currentLayoutKey = "strip4";
 let currentFrameKey = "polaroid";
 let currentFilterKey = "none";
@@ -540,6 +564,7 @@ const flashOverlay = document.getElementById("flashOverlay");
 const countdownOverlay = document.getElementById("countdownOverlay");
 const sequenceIndicator = document.getElementById("sequenceIndicator");
 
+const livePrintOut = document.getElementById("livePrintOut");
 const liveGrid = document.getElementById("liveGrid");
 const overlayTitle = document.getElementById("overlayTitle");
 const overlaySubtitle = document.getElementById("overlaySubtitle");
@@ -549,6 +574,9 @@ const themeControls = document.getElementById("themeControls");
 const filterControls = document.getElementById("filterControls");
 const mainControls = document.getElementById("mainControls");
 const uploadControls = document.getElementById("uploadControls");
+
+const toggleMenuBtn = document.getElementById("toggleMenuBtn");
+const optionsMenu = document.getElementById("optionsMenu");
 
 const shutterBtn = document.getElementById("shutter");
 const flipBtn = document.getElementById("flipBtn");
@@ -569,7 +597,6 @@ const inputSubtitle = document.getElementById("inputSubtitle");
 
 /* ================= INITIALIZATION ================= */
 function initUI() {
-  // 1. Generate Layout Buttons
   Object.keys(LAYOUTS).forEach(key => {
     const btn = document.createElement("button");
     btn.className = "opt-btn" + (key === currentLayoutKey ? " active" : "");
@@ -578,12 +605,11 @@ function initUI() {
       currentLayoutKey = key;
       document.querySelectorAll('#layoutControls button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      applyLayout(); // Rebuild physical grid slots
+      applyLayout(); 
     };
     layoutControls.appendChild(btn);
   });
 
-  // 2. Generate Theme Buttons
   Object.keys(FRAMES).forEach(key => {
     const btn = document.createElement("button");
     btn.className = "opt-btn" + (key === currentFrameKey ? " active" : "");
@@ -592,12 +618,11 @@ function initUI() {
       currentFrameKey = key;
       document.querySelectorAll('#themeControls button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      applyTheme(); // Change colors
+      applyTheme(); 
     };
     themeControls.appendChild(btn);
   });
 
-  // 3. Generate Filter Buttons
   Object.keys(FILTERS).forEach(key => {
     const btn = document.createElement("button");
     btn.className = "opt-btn" + (key === currentFilterKey ? " active" : "");
@@ -606,18 +631,29 @@ function initUI() {
       currentFilterKey = key;
       document.querySelectorAll('#filterControls button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      applyLiveFilter(); // Apply CSS filters
+      applyLiveFilter(); 
     };
     filterControls.appendChild(btn);
   });
 
-  // Setup initial view
   applyAdminText();
   applyTheme();
   applyLayout();
   applyLiveFilter();
   startCamera();
 }
+
+/* ================= TOGGLE MENU ================= */
+toggleMenuBtn.onclick = () => {
+  optionsOpen = !optionsOpen;
+  if (optionsOpen) {
+    optionsMenu.classList.remove("collapsed");
+    toggleMenuBtn.textContent = "🔽 Hide Options";
+  } else {
+    optionsMenu.classList.add("collapsed");
+    toggleMenuBtn.textContent = "🔼 Show Options";
+  }
+};
 
 /* ================= ADMIN LOGIC ================= */
 openAdminBtn.onclick = () => {
@@ -668,11 +704,22 @@ function applyLiveFilter() {
 
 function applyLayout() {
   const layout = LAYOUTS[currentLayoutKey];
-  liveGrid.innerHTML = ''; // Wipe existing slots
+  liveGrid.innerHTML = ''; 
   
   // Set the CSS Grid dimensions
   liveGrid.style.gridTemplateColumns = `repeat(${layout.cols}, 1fr)`;
   liveGrid.style.gridTemplateRows = `repeat(${layout.rows}, 1fr)`;
+
+  // Dynamically size the live preview area so it matches the real aspect ratio
+  const pW = 720;
+  const pH = layout.crop === 'square' ? 720 : 960;
+  const gap = 30;
+  const outerPad = 40;
+  const bottomSpace = 280; 
+
+  const totalW = (outerPad * 2) + (pW * layout.cols) + (gap * (layout.cols - 1));
+  const totalH = outerPad + bottomSpace + (pH * layout.rows) + (gap * (layout.rows - 1));
+  livePrintOut.style.aspectRatio = `${totalW} / ${totalH}`;
 
   // Create empty slots
   for (let i = 0; i < layout.count; i++) {
@@ -771,8 +818,8 @@ shutterBtn.onclick = async () => {
       await sleep(150);
     }
 
-    // Capture the frame quietly in the background
-    const frameCanvas = grabSingleFrame();
+    // Capture the frame properly cropped
+    const frameCanvas = grabSingleFrame(layout);
     capturedPhotos.push(frameCanvas);
 
     // 1. Create a physical image element from the frame
@@ -785,66 +832,82 @@ shutterBtn.onclick = async () => {
     currentSlot.removeChild(videoOverlay);
     currentSlot.appendChild(img);
 
-    // 3. Jump the live video forward to the NEXT slot (if there is one)
+    // 3. Jump the live video forward to the NEXT slot
     if (i + 1 < layout.count) {
       const nextSlot = document.getElementById(`slot-${i + 1}`);
       nextSlot.appendChild(video);
       nextSlot.appendChild(videoOverlay);
-      await sleep(500); // Quick breather before next countdown
+      await sleep(500); 
     }
   }
 
   sequenceIndicator.classList.add("hidden");
   
-  // Build final high-res canvas invisible in the background for uploading
   buildComposition(capturedPhotos, layout);
   
-  // Swap Controls to Upload mode
   mainControls.classList.add("hidden");
   uploadControls.classList.remove("hidden");
 };
 
-function grabSingleFrame() {
+/* PERFECT CENTER CROP MATH */
+function grabSingleFrame(layout) {
+  const isSquare = layout.crop === 'square';
+  const cW = 720;
+  const cH = isSquare ? 720 : 960;
+
   const offCanvas = document.createElement("canvas");
-  offCanvas.width = 720;
-  offCanvas.height = 960;
+  offCanvas.width = cW;
+  offCanvas.height = cH;
   const octx = offCanvas.getContext("2d");
 
-  // Mirror logic for front camera
   if (facingMode === "user") {
-    octx.translate(offCanvas.width, 0);
+    octx.translate(cW, 0);
     octx.scale(-1, 1);
   }
   
-  // Apply CSS Color grades to the permanent photo
   octx.filter = FILTERS[currentFilterKey].css;
-  octx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
+
+  // Calculates a perfect center crop preventing any stretching
+  const vW = video.videoWidth || 1080;
+  const vH = video.videoHeight || 1440;
+  const vRatio = vW / vH;
+  const cRatio = cW / cH;
+
+  let sX = 0, sY = 0, sW = vW, sH = vH;
+
+  if (vRatio > cRatio) {
+    sW = vH * cRatio;
+    sX = (vW - sW) / 2;
+  } else {
+    sH = vW / cRatio;
+    sY = (vH - sH) / 2;
+  }
+
+  octx.drawImage(video, sX, sY, sW, sH, 0, 0, cW, cH);
   octx.setTransform(1, 0, 0, 1, 0, 0);
   octx.filter = "none";
 
-  // Apply Tints and Vignettes to the permanent photo
   const filter = FILTERS[currentFilterKey];
   if (filter.overlay !== 'transparent') {
     octx.fillStyle = filter.overlay;
-    octx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+    octx.fillRect(0, 0, cW, cH);
   }
   if (filter.vignette) {
-    const v = octx.createRadialGradient(offCanvas.width/2, offCanvas.height/2, offCanvas.width/4, offCanvas.width/2, offCanvas.height/2, offCanvas.width);
+    const v = octx.createRadialGradient(cW/2, cH/2, cW/4, cW/2, cH/2, Math.max(cW, cH));
     v.addColorStop(0, "rgba(0,0,0,0)");
     v.addColorStop(1, "rgba(0,0,0,0.65)");
     octx.fillStyle = v;
-    octx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+    octx.fillRect(0, 0, cW, cH);
   }
   
   return offCanvas;
 }
 
 /* ================= BUILD FINAL HIGH-RES UPLOAD ================= */
-// This creates the large, stitched photo in a hidden canvas
 function buildComposition(photos, layout) {
   const frame = FRAMES[currentFrameKey];
   const pW = 720;
-  const pH = 960;
+  const pH = layout.crop === 'square' ? 720 : 960; // Output matches layout shape
   const gap = 30;
   const outerPad = 40;
   const bottomSpace = 280; 
@@ -885,7 +948,6 @@ retakeBtn.onclick = () => {
   uploadControls.classList.add("hidden");
   document.getElementById("statusMessage").classList.add("hidden");
   
-  // Wipe the live UI and rebuild the layout from scratch
   applyLayout();
   mainControls.classList.remove("hidden");
   
