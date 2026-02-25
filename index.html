@@ -114,12 +114,15 @@ h1 {
   box-sizing: border-box;
   transition: background 0.3s ease, aspect-ratio 0.3s ease;
   container-type: inline-size;
+  position: relative;
 }
 
 #liveGrid {
   flex: 1;
   display: grid;
   min-height: 0; 
+  position: relative;
+  z-index: 1;
 }
 
 .grid-slot {
@@ -152,6 +155,8 @@ h1 {
   flex-direction: column;
   justify-content: center;
   overflow: hidden;
+  position: relative;
+  z-index: 2;
 }
 
 .event-title {
@@ -169,6 +174,22 @@ h1 {
   font-weight: 600;
   letter-spacing: 2px;
   transition: color 0.3s ease;
+}
+
+/* Sticker Layer */
+#stickersContainer {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+.sticker {
+  position: absolute;
+  transform-origin: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #flashOverlay {
@@ -445,6 +466,7 @@ button.shutter:disabled { opacity: 0.5; cursor: not-allowed; }
 <div class="view-container" id="viewContainer">
   
   <div id="livePrintOut">
+    <div id="stickersContainer"></div> <!-- Dynamic Stickers Overlay -->
     <div id="liveGrid"></div>
     <div id="liveText">
       <div class="event-title" id="overlayTitle"></div>
@@ -521,15 +543,16 @@ const ADMIN_PIN = "1234";
 let capturedPhotos = []; 
 
 /* ================= CONFIGURATIONS ================= */
+// Set all crops to 'portrait' (3:4 aspect ratio) to retain a tall mobile frame feel
 const LAYOUTS = {
   single: { name: "1 Photo", count: 1, cols: 1, rows: 1, crop: 'portrait' },
-  grid2:  { name: "2 Grid",  count: 2, cols: 2, rows: 1, crop: 'square' },
+  grid2:  { name: "2 Grid",  count: 2, cols: 2, rows: 1, crop: 'portrait' },
   strip2: { name: "2 Strip", count: 2, cols: 1, rows: 2, crop: 'portrait' },
   strip3: { name: "3 Strip", count: 3, cols: 1, rows: 3, crop: 'portrait' },
   strip4: { name: "4 Strip", count: 4, cols: 1, rows: 4, crop: 'portrait' },
-  grid4:  { name: "4 Grid",  count: 4, cols: 2, rows: 2, crop: 'square' },
+  grid4:  { name: "4 Grid",  count: 4, cols: 2, rows: 2, crop: 'portrait' },
   strip8: { name: "8 Strip", count: 8, cols: 1, rows: 8, crop: 'portrait' },
-  grid8:  { name: "8 Grid",  count: 8, cols: 2, rows: 4, crop: 'square' }
+  grid8:  { name: "8 Grid",  count: 8, cols: 2, rows: 4, crop: 'portrait' }
 };
 
 const FRAMES = {
@@ -537,7 +560,21 @@ const FRAMES = {
   midnight: { name: "Midnight Black", bgFill: "#1a1a1a", textCol: "white" },
   pastel:   { name: "Pastel Pink", bgFill: "#ffe4e1", textCol: "black" },
   blue:     { name: "Baby Blue", bgFill: "#e0f7fa", textCol: "black" },
-  kraft:    { name: "Vintage Kraft", bgFill: "#dcb282", textCol: "black" }
+  kraft:    { name: "Vintage Kraft", bgFill: "#dcb282", textCol: "black" },
+  // ADDED NEW SPECIAL THEME WITH STICKERS
+  stickers: { 
+    name: "Kawaii Stickers 🎀", 
+    bgFill: "#fff0f5", 
+    textCol: "#ff69b4",
+    stickers: [
+      { emoji: "💖", left: "8%", top: "8%", size: 0.1, angle: -15 },
+      { emoji: "✨", right: "10%", top: "25%", size: 0.08, angle: 10 },
+      { emoji: "🎀", right: "6%", bottom: "25%", size: 0.12, angle: -20 },
+      { emoji: "🌸", left: "6%", bottom: "18%", size: 0.1, angle: 15 },
+      { emoji: "🧸", right: "82%", top: "65%", size: 0.09, angle: 5 },
+      { emoji: "🍒", left: "85%", top: "45%", size: 0.08, angle: -10 }
+    ]
+  }
 };
 
 const FILTERS = {
@@ -568,6 +605,7 @@ const sequenceIndicator = document.getElementById("sequenceIndicator");
 
 const livePrintOut = document.getElementById("livePrintOut");
 const liveGrid = document.getElementById("liveGrid");
+const stickersContainer = document.getElementById("stickersContainer");
 const overlayTitle = document.getElementById("overlayTitle");
 const overlaySubtitle = document.getElementById("overlaySubtitle");
 const liveText = document.getElementById("liveText");
@@ -695,6 +733,24 @@ function applyTheme() {
   document.documentElement.style.setProperty('--theme-color', frame.bgFill);
   overlayTitle.style.color = frame.textCol;
   overlaySubtitle.style.color = frame.textCol === 'black' ? '#555' : '#ccc';
+  
+  // Render Stickers for Live Preview
+  stickersContainer.innerHTML = '';
+  if (frame.stickers) {
+    frame.stickers.forEach(s => {
+      const el = document.createElement('div');
+      el.className = 'sticker';
+      el.textContent = s.emoji;
+      if (s.left) el.style.left = s.left;
+      if (s.right) el.style.right = s.right;
+      if (s.top) el.style.top = s.top;
+      if (s.bottom) el.style.bottom = s.bottom;
+      // Size dynamically scales using cqi relative to the livePrintOut container
+      el.style.fontSize = `${s.size * 100}cqi`;
+      el.style.transform = `rotate(${s.angle}deg)`;
+      stickersContainer.appendChild(el);
+    });
+  }
 }
 
 function applyLiveFilter() {
@@ -949,6 +1005,7 @@ function buildComposition(photos, layout) {
     ctx.strokeRect(x, y, pW, pH);
   });
 
+  // Render High-Res Text
   ctx.textAlign = "center";
   ctx.fillStyle = frame.textCol;
   
@@ -959,6 +1016,28 @@ function buildComposition(photos, layout) {
   ctx.font = `600 ${canvas.width * 0.025}px sans-serif`;
   ctx.fillStyle = frame.textCol === 'black' ? '#555555' : '#cccccc';
   ctx.fillText(EVENT_DATE, canvas.width / 2, textY + (canvas.width * 0.04));
+
+  // Render High-Res Stickers onto the final canvas!
+  if (frame.stickers) {
+    frame.stickers.forEach(s => {
+      ctx.font = `${canvas.width * s.size}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      let x = 0;
+      let y = 0;
+      if (s.left) x = canvas.width * (parseFloat(s.left) / 100);
+      if (s.right) x = canvas.width - (canvas.width * (parseFloat(s.right) / 100));
+      if (s.top) y = canvas.height * (parseFloat(s.top) / 100);
+      if (s.bottom) y = canvas.height - (canvas.height * (parseFloat(s.bottom) / 100));
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate((s.angle * Math.PI) / 180);
+      ctx.fillText(s.emoji, 0, 0);
+      ctx.restore();
+    });
+  }
 }
 
 /* ================= UPLOAD & RETAKE ================= */
