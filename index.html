@@ -35,19 +35,22 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text-main);
-  min-height: 100vh;
+  /* Locked viewport preventing overall page scroll */
+  height: 100vh;
+  height: 100dvh; 
+  overflow: hidden; 
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 24px 16px;
-  overflow-x: hidden;
+  /* Respect safe areas for modern notch/home-bar phones */
+  padding: env(safe-area-inset-top, 24px) 16px env(safe-area-inset-bottom, 24px) 16px;
 }
 
 /* ===== MINIMALIST HEADER ===== */
 header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   width: 100%;
   max-width: 420px;
   display: flex;
@@ -99,12 +102,12 @@ h1 {
   position: relative;
   width: 100%;
   max-width: 420px;
-  flex: 1; 
-  min-height: 0; 
+  flex: 1 1 auto; 
+  min-height: 35vh; /* Ensure camera never shrinks too small */
   border-radius: var(--radius-lg);
   background: #000000;
   box-shadow: var(--shadow-float);
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -254,25 +257,17 @@ h1 {
   max-width: 420px;
   background: var(--surface);
   border-radius: var(--radius-lg);
-  padding: 20px;
+  padding: 16px 20px;
   box-shadow: var(--shadow-soft);
   border: 1px solid var(--border);
+  
+  /* Layout constraints for non-scrolling parent */
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  transition: opacity 0.3s ease;
   flex-shrink: 0;
-}
-
-.options-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  transition: all 0.3s ease;
-}
-
-.options-menu.collapsed {
-  display: none;
+  max-height: 52vh; /* Max limit on small screens */
+  gap: 12px;
+  transition: opacity 0.3s ease;
 }
 
 .toggle-menu-btn {
@@ -287,9 +282,38 @@ h1 {
   letter-spacing: 1px;
   transition: color 0.2s ease;
   align-self: center;
+  flex-shrink: 0; /* Never shrink toggle */
 }
 .toggle-menu-btn:active {
   color: var(--dark);
+}
+
+.options-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all 0.3s ease;
+  
+  /* Internal scroll capability */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  margin-right: -4px;
+}
+
+/* Aesthetic scrollbar for the internal menu */
+.options-menu::-webkit-scrollbar {
+  width: 4px;
+}
+.options-menu::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.options-menu.collapsed {
+  display: none;
 }
 
 .scroll-row {
@@ -313,6 +337,7 @@ h1 {
   letter-spacing: 1px;
   margin-left: 2px;
   margin-bottom: -6px;
+  flex-shrink: 0;
 }
 
 /* Minimalist Pills */
@@ -327,6 +352,7 @@ button.opt-btn {
   white-space: nowrap;
   color: var(--text-main);
   transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  flex-shrink: 0;
 }
 
 button.opt-btn.active {
@@ -340,8 +366,8 @@ button.opt-btn.active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 4px;
-  padding: 0 8px;
+  padding: 4px 8px 0 8px;
+  flex-shrink: 0; /* Shutter button row is perfectly pinned! */
 }
 
 .icon-btn {
