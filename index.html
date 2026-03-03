@@ -6,57 +6,48 @@
 <title>SNAPBACK Photo Booth</title>
 
 <style>
-/* ===== INSTAGRAM-INSPIRED DESIGN TOKENS ===== */
+/* ===== CLEAN STUDIO AESTHETIC ===== */
 :root {
-  --bg: #000000; /* Pure black */
-  --surface: #000000;
-  --dark: #ffffff; /* Inverted for dark mode */
-  --text-muted: #8e8e8e; /* IG grey */
-  --text-main: #f5f5f5;
-  --border: #262626; /* IG divider line color */
-  --accent: #0095f6; /* IG Primary Blue */
-  --radius-lg: 16px; /* IG Story corner radius */
-  --radius-md: 12px;
-  --radius-sm: 8px;
-  --theme-color: #000000; 
+  --bg-app: #EFEFEF;
+  --surface: #FFFFFF;
+  --text-dark: #111111;
+  --text-muted: #71717A;
+  --btn-bg: #F4F4F5;
+  --btn-border: #E4E4E7;
+  --accent: #111111;
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-pill: 100px;
 }
 
 * {
   box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
   -webkit-tap-highlight-color: transparent;
   font-smooth: always;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text-main);
+  background: var(--bg-app);
+  color: var(--text-dark);
   /* Locked viewport preventing overall page scroll */
   height: 100vh;
   height: 100dvh; 
   overflow: hidden; 
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  /* Respect safe areas for modern notch/home-bar phones */
-  padding: env(safe-area-inset-top, 12px) 0 env(safe-area-inset-bottom, 20px) 0;
+  padding: env(safe-area-inset-top, 12px) 0 env(safe-area-inset-bottom, 0) 0;
 }
 
-/* ===== MINIMALIST HEADER ===== */
+/* ===== HEADER ===== */
 header {
-  text-align: center;
-  margin-bottom: 12px;
-  width: 100%;
-  max-width: 420px;
+  padding: 12px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
-  padding: 0 16px;
 }
 
 .brand {
@@ -65,78 +56,71 @@ header {
 
 h1 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  color: #ffffff;
+  font-size: 20px;
+  font-weight: 800;
   letter-spacing: -0.5px;
+  color: var(--text-dark);
 }
 
 .tagline {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
   margin-top: 2px;
 }
 
 .admin-btn {
   background: transparent;
   border: none;
-  color: #ffffff;
-  width: 32px;
-  height: 32px;
-  font-size: 20px;
+  color: var(--text-muted);
+  padding: 8px;
   cursor: pointer;
-  transition: opacity 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: opacity 0.2s ease;
 }
 .admin-btn:active {
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
-/* ===== IG STORY STYLE VIEWPORT ===== */
+/* ===== PERFECT FIT VIEWPORT ===== */
 .view-container {
-  position: relative;
-  width: calc(100% - 16px);
-  max-width: 420px;
-  flex: 1 1 auto; 
-  min-height: 35vh; 
-  border-radius: var(--radius-lg);
-  background: #111111;
-  margin-bottom: 16px;
+  flex: 1; 
+  min-height: 0; 
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden; /* Clips to rounded corners like IG stories */
+  padding: 0 16px 16px 16px;
+  width: 100%;
 }
 
-/* BULLETPROOF SIZING TRICK */
 #livePrintOut {
-  width: 2000px; 
-  max-width: 100%;
-  max-height: 100%;
-  background: var(--theme-color);
+  /* JS dynamically sets exact pixel width/height to perfectly fit within view-container */
+  background: #ffffff;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
-  transition: background 0.3s ease, aspect-ratio 0.3s ease;
-  container-type: inline-size;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.1);
+  border-radius: 2px;
   position: relative;
+  container-type: inline-size;
+  transition: background 0.3s ease;
 }
 
 #liveGrid {
   flex: 1;
   display: grid;
-  min-height: 0; 
   position: relative;
   z-index: 1;
 }
 
 .grid-slot {
-  background: #1a1a1a; 
+  background: #E4E4E7; /* Soft gray fallback before camera loads */
   position: relative;
   overflow: hidden;
+  border-radius: 2px;
 }
 
 .grid-slot video, .grid-slot img {
@@ -176,14 +160,13 @@ h1 {
 
 .event-subtitle {
   font-size: 2.2cqi; 
-  margin-top: 3px;
+  margin-top: 4px;
   font-weight: 500;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   transition: color 0.3s ease;
 }
 
-/* Sticker Layer */
 #stickersContainer {
   position: absolute;
   top: 0; left: 0; width: 100%; height: 100%;
@@ -197,7 +180,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2));
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));
 }
 
 #flashOverlay {
@@ -209,7 +192,6 @@ h1 {
   z-index: 10;
 }
 
-/* ===== SEQUENCE UI ===== */
 #sequenceIndicator {
   position: absolute;
   top: 20px;
@@ -217,8 +199,8 @@ h1 {
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.7);
   color: white;
-  padding: 6px 16px;
-  border-radius: 20px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
   font-size: 13px;
   font-weight: 600;
   z-index: 20;
@@ -232,169 +214,153 @@ h1 {
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 120px;
-  font-weight: 400;
+  font-weight: 300;
   color: white;
-  text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  text-shadow: 0 10px 40px rgba(0,0,0,0.5);
   z-index: 20;
   transition: transform 0.1s ease;
-  font-variant-numeric: tabular-nums;
 }
 
-/* ===== IG CONTROLS PANEL ===== */
+/* ===== CONTROL PANEL ===== */
 .control-panel {
-  width: 100%;
-  max-width: 420px;
   background: var(--surface);
-  padding: 0 16px;
-  
-  /* Layout constraints for non-scrolling parent */
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 20px;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.06);
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
-  max-height: 50vh; 
   gap: 16px;
-  transition: opacity 0.3s ease;
+  max-height: 50vh; /* Prevents menu from swallowing the camera */
 }
 
 .toggle-menu-btn {
-  background: #262626;
-  border: none;
-  font-size: 13px;
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
+  font-size: 12px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-dark);
   cursor: pointer;
   padding: 8px 16px;
-  border-radius: 20px;
-  transition: background 0.2s ease;
+  border-radius: var(--radius-pill);
   align-self: center;
   flex-shrink: 0; 
+  transition: background 0.2s ease;
 }
-.toggle-menu-btn:active {
-  background: #363636;
-}
+.toggle-menu-btn:active { background: #E4E4E7; }
 
 .options-menu {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  transition: all 0.3s ease;
-  
-  /* Internal scroll capability */
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding-right: 4px;
-  margin-right: -4px;
+  overflow-y: auto; /* Scrollable inside safely */
+  padding-bottom: 8px;
 }
-
-.options-menu::-webkit-scrollbar { width: 4px; }
-.options-menu::-webkit-scrollbar-thumb { background: #363636; border-radius: 4px; }
 .options-menu.collapsed { display: none; }
+.options-menu::-webkit-scrollbar { display: none; }
 
 .scroll-row {
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
-  gap: 8px;
+  gap: 10px;
   padding-bottom: 4px;
   -ms-overflow-style: none;
   scrollbar-width: none;
-  mask-image: linear-gradient(to right, black 90%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
 }
 .scroll-row::-webkit-scrollbar { display: none; }
 
 .row-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #ffffff; 
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
   margin-bottom: -4px;
   flex-shrink: 0;
 }
 
-/* IG Dark Pills */
 button.opt-btn {
-  padding: 8px 16px;
-  border-radius: 20px;
-  border: 1px solid #363636;
-  background: transparent;
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  color: #ffffff;
+  color: var(--text-dark);
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
 button.opt-btn.active {
-  background: #ffffff;
-  color: #000000;
-  border-color: #ffffff;
+  background: var(--text-dark);
+  color: #ffffff;
+  border-color: var(--text-dark);
 }
 
 .action-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: space-around;
   align-items: center;
-  padding: 10px 20px 0 20px;
+  padding-top: 4px;
   flex-shrink: 0; 
 }
 
 .icon-btn {
-  background: #262626;
-  border: none;
-  color: #ffffff;
-  width: 44px;
-  height: 44px;
+  background: var(--surface);
+  border: 1px solid var(--btn-border);
+  color: var(--text-dark);
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  font-size: 18px;
+  font-size: 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
-.icon-btn:active { opacity: 0.6; }
-.icon-btn.active { background: #ffffff; color: #000000; }
+.icon-btn:active { transform: scale(0.9); }
+.icon-btn.active { background: #FEF08A; border-color: #FDE047; } /* Bright yellow for active flash */
 
-/* IG Classic Shutter */
+/* BIG STUDIO SHUTTER */
 button.shutter {
   width: 76px;
   height: 76px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: transparent;
-  border: 4px solid #ffffff; /* Thick outer white ring */
+  background: var(--surface);
+  border: 4px solid var(--text-dark);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  position: relative;
-  padding: 3px; /* Gap between ring and center */
+  padding: 4px; 
 }
 button.shutter::after {
   content: '';
   width: 100%;
   height: 100%;
-  background: #ffffff;
+  background: var(--text-dark);
   border-radius: 50%;
   transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
-button.shutter:active::after { 
-  transform: scale(0.88); 
-}
+button.shutter:active::after { transform: scale(0.85); }
 button.shutter:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ===== ADMIN MODAL ===== */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -403,96 +369,81 @@ button.shutter:disabled { opacity: 0.4; cursor: not-allowed; }
   pointer-events: none;
   transition: opacity 0.3s ease;
 }
-.modal-overlay.active {
-  opacity: 1;
-  pointer-events: auto;
-}
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
 
 .modal-content {
-  background: #1a1a1a;
-  padding: 24px;
+  background: var(--surface);
+  padding: 32px 24px;
   border-radius: var(--radius-lg);
   width: 90%;
-  max-width: 320px;
+  max-width: 340px;
   text-align: center;
-  border: 1px solid #333;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.2);
 }
 
-.modal-content h3 { margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #ffffff; }
+.modal-content h3 { margin: 0 0 24px 0; font-size: 20px; font-weight: 800; color: var(--text-dark); }
 
 .modal-content input[type="text"], 
 .modal-content input[type="password"] {
   width: 100%;
-  padding: 14px;
+  padding: 16px;
   margin-bottom: 12px;
-  border: 1px solid #333;
+  border: 1px solid var(--btn-border);
   border-radius: var(--radius-md);
   font-size: 15px;
-  background: #000000;
-  color: #ffffff;
+  background: var(--bg-app);
 }
-.modal-content input:focus { outline: none; border-color: var(--accent); }
-.modal-content input::placeholder { color: var(--text-muted); }
+.modal-content input:focus { outline: none; border-color: var(--text-dark); }
 
 .btn-primary {
   width: 100%;
-  padding: 14px;
-  background: var(--accent);
+  padding: 16px;
+  background: var(--text-dark);
   color: white;
   border: none;
   border-radius: var(--radius-md);
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   cursor: pointer;
-  margin-top: 8px;
-  transition: background 0.2s ease;
+  margin-top: 12px;
+  transition: transform 0.2s ease;
 }
-.btn-primary:active { background: #0077c5; }
+.btn-primary:active { transform: scale(0.97); }
 
 /* Upload Actions Container */
 #uploadControls {
   display: flex;
   gap: 12px;
   width: 100%;
-  max-width: 420px;
-  margin-top: 10px;
+  padding: 24px 20px;
+  background: var(--surface);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   flex-shrink: 0;
-  padding: 0 16px;
 }
 #uploadControls button {
   flex: 1;
-  padding: 14px;
-  border-radius: var(--radius-md);
+  padding: 18px;
+  border-radius: var(--radius-pill);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   border: none;
   cursor: pointer;
-  transition: opacity 0.2s ease;
 }
-#uploadControls button:active { opacity: 0.7; }
-#uploadBtn { 
-  background: var(--accent); 
-  color: white; 
-}
-#retakeBtn { 
-  background: #262626; 
-  color: #ffffff; 
-}
+#uploadBtn { background: var(--text-dark); color: white; }
+#retakeBtn { background: var(--btn-bg); color: var(--text-dark); border: 1px solid var(--btn-border); }
 
 /* Status Box */
 #statusMessage {
-  margin: 10px 16px 0 16px;
-  padding: 14px;
+  margin: 16px 20px 0 20px;
+  padding: 16px;
   border-radius: var(--radius-md);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   text-align: center;
-  width: calc(100% - 32px);
-  max-width: 420px;
 }
-#statusMessage.loading { background: #262626; color: #ffffff; }
-#statusMessage.success { background: #000000; color: #4ade80; border: 1px solid #166534; }
-#statusMessage.error { background: #000000; color: #f87171; border: 1px solid #991b1b; }
+#statusMessage.loading { background: #F4F4F5; color: var(--text-dark); }
+#statusMessage.success { background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; }
+#statusMessage.error { background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; }
 .hidden { display: none !important; }
 </style>
 </head>
@@ -505,7 +456,7 @@ button.shutter:disabled { opacity: 0.4; cursor: not-allowed; }
     <div class="tagline">Event Photo Booth</div>
   </div>
   <button class="admin-btn" id="openAdminBtn" title="Admin Settings">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
   </button>
 </header>
 
@@ -549,11 +500,11 @@ button.shutter:disabled { opacity: 0.4; cursor: not-allowed; }
 
   <div class="action-row">
     <button class="icon-btn" id="flashBtn" title="Toggle Flash">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
     </button>
     <button class="shutter" id="shutter"></button>
     <button class="icon-btn" id="flipBtn" title="Flip Camera">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
     </button>
   </div>
 </div>
@@ -614,8 +565,8 @@ const TIMERS = {
 };
 
 const FRAMES = {
-  polaroid: { name: "Classic White", bgFill: "#ffffff", textCol: "#000000" },
-  midnight: { name: "Dark Mode", bgFill: "#000000", textCol: "#ffffff" },
+  polaroid: { name: "Classic White", bgFill: "#ffffff", textCol: "#111111" },
+  midnight: { name: "Dark Mode", bgFill: "#111111", textCol: "#ffffff" },
   kraft:    { name: "Kraft", bgFill: "#e7e5e4", textCol: "#1c1917" },
   blue:     { name: "Cyan", bgFill: "#f0f9ff", textCol: "#0369a1" },
   stickers: { 
@@ -695,7 +646,6 @@ const inputSubtitle = document.getElementById("inputSubtitle");
 
 /* ================= INITIALIZATION ================= */
 function initUI() {
-  // Layout Options
   Object.keys(LAYOUTS).forEach(key => {
     const btn = document.createElement("button");
     btn.className = "opt-btn" + (key === currentLayoutKey ? " active" : "");
@@ -709,7 +659,6 @@ function initUI() {
     layoutControls.appendChild(btn);
   });
 
-  // Timer Options
   Object.keys(TIMERS).forEach(key => {
     const btn = document.createElement("button");
     btn.className = "opt-btn" + (key === currentTimerKey ? " active" : "");
@@ -722,7 +671,6 @@ function initUI() {
     timerControls.appendChild(btn);
   });
 
-  // Theme Options
   Object.keys(FRAMES).forEach(key => {
     const btn = document.createElement("button");
     btn.className = "opt-btn" + (key === currentFrameKey ? " active" : "");
@@ -736,7 +684,6 @@ function initUI() {
     themeControls.appendChild(btn);
   });
 
-  // Filter Options
   Object.keys(FILTERS).forEach(key => {
     const btn = document.createElement("button");
     btn.className = "opt-btn" + (key === currentFilterKey ? " active" : "");
@@ -755,6 +702,9 @@ function initUI() {
   applyLayout();
   applyLiveFilter();
   startCamera();
+  
+  // Recalculate camera preview bounds when window changes
+  window.addEventListener('resize', applyLayout);
 }
 
 /* ================= TOGGLE MENU ================= */
@@ -792,7 +742,6 @@ saveAdminBtn.onclick = () => {
   EVENT_NAME = inputTitle.value.trim() || "Event Gallery";
   EVENT_DATE = inputSubtitle.value.trim() || "Captured today";
   
-  // Save settings persistently
   localStorage.setItem("snapback_event_name", EVENT_NAME);
   localStorage.setItem("snapback_event_date", EVENT_DATE);
   
@@ -808,16 +757,15 @@ function applyAdminText() {
 /* ================= LIVE PREVIEWS & GRID ================= */
 function applyTheme() {
   const frame = FRAMES[currentFrameKey];
-  document.documentElement.style.setProperty('--theme-color', frame.bgFill);
+  livePrintOut.style.background = frame.bgFill;
   overlayTitle.style.color = frame.textCol;
   
-  if(frame.bgFill === "#000000" || frame.bgFill === "#09090b") {
+  if(frame.bgFill === "#111111") {
      overlaySubtitle.style.color = 'rgba(255,255,255,0.6)';
   } else {
      overlaySubtitle.style.color = 'rgba(0,0,0,0.5)';
   }
   
-  // Render Stickers for Live Preview
   stickersContainer.innerHTML = '';
   if (frame.stickers) {
     frame.stickers.forEach(s => {
@@ -861,7 +809,20 @@ function applyLayout() {
   const totalW = (outerPad * 2) + (pW * layout.cols) + (gap * (layout.cols - 1));
   const totalH = outerPad + bottomSpace + (pH * layout.rows) + (gap * (layout.rows - 1));
   
-  livePrintOut.style.aspectRatio = `${totalW} / ${totalH}`;
+  // Calculate exact pixel dimensions so it never squishes or breaks bounds!
+  const vcW = viewContainer.clientWidth - 32; // Safe inner bounds
+  const vcH = viewContainer.clientHeight - 32; 
+  const targetRatio = totalW / totalH;
+  
+  if (vcW / vcH > targetRatio) {
+    // Parent is wider than needed -> Lock to height
+    livePrintOut.style.height = `${vcH}px`;
+    livePrintOut.style.width = `${vcH * targetRatio}px`;
+  } else {
+    // Parent is taller than needed -> Lock to width
+    livePrintOut.style.width = `${vcW}px`;
+    livePrintOut.style.height = `${vcW / targetRatio}px`;
+  }
 
   const padCqi = (outerPad / totalW) * 100;
   const gapCqi = (gap / totalW) * 100;
@@ -1089,7 +1050,7 @@ function buildComposition(photos, layout) {
   
   ctx.font = `500 ${canvas.width * 0.022}px -apple-system, sans-serif`;
   
-  if(frame.bgFill === "#000000" || frame.bgFill === "#09090b") {
+  if(frame.bgFill === "#111111") {
      ctx.fillStyle = 'rgba(255,255,255,0.6)';
   } else {
      ctx.fillStyle = 'rgba(0,0,0,0.5)';
