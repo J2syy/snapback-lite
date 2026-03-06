@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-<title>SNAPBACK Camera</title>
+<title>SNAPBACK Photo Booth</title>
 
 <style>
 /* ===== VSCO / SNAPCHAT IMMERSIVE AESTHETIC ===== */
@@ -56,7 +56,6 @@ body {
   pointer-events: none;
 }
 
-/* Secondary filter overlay for the background video */
 .bg-filter-overlay {
   position: fixed;
   top: 0; left: 0;
@@ -107,34 +106,103 @@ header {
 }
 .admin-btn:active { opacity: 0.5; }
 
-/* ===== LIVE TEXT OVERLAY ===== */
-#liveTextOverlay {
+/* ===== FLOATING PRINT OUT (THE STRIP) ===== */
+.view-container {
   position: absolute;
-  bottom: 180px; 
-  left: 0; 
-  width: 100vw; 
-  text-align: center; 
-  z-index: 10; 
+  top: calc(env(safe-area-inset-top, 12px) + 70px);
+  bottom: 160px; /* Space for shutter */
+  left: 20px; right: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none; 
+}
+
+#livePrintOut {
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  border-radius: 4px;
+  position: relative;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1);
+  container-type: inline-size;
+  transition: background 0.3s ease;
+  overflow: hidden;
+}
+
+#liveGrid {
+  flex: 1;
+  display: grid;
+  position: relative;
+  z-index: 1;
+}
+
+.grid-slot {
+  background: rgba(255,255,255,0.1);
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.grid-slot video, .grid-slot img {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
+#videoOverlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
   pointer-events: none;
+  transition: background 0.3s ease;
+  z-index: 2;
+}
+
+#liveText {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
 }
 
 .event-title {
   font-weight: 800;
-  font-size: 24px; 
+  font-size: 5cqi; 
   letter-spacing: -0.5px;
   margin: 0;
   text-transform: uppercase;
-  text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  transition: color 0.3s ease;
 }
 
 .event-subtitle {
-  font-size: 12px; 
+  font-size: 2.2cqi; 
   margin-top: 4px;
   font-weight: 500;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.8);
-  text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  transition: color 0.3s ease;
+}
+
+#stickersContainer {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+.sticker {
+  position: absolute;
+  transform-origin: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));
 }
 
 /* ===== FLASH & COUNTDOWN ===== */
@@ -145,6 +213,24 @@ header {
   opacity: 0;
   pointer-events: none;
   z-index: 999;
+}
+
+#sequenceIndicator {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--glass-bg);
+  color: white;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 20;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 
 #countdownOverlay {
@@ -407,15 +493,6 @@ button.opt-btn.active {
 <div class="bg-gradient"></div>
 <div id="bgVideoOverlay" class="bg-filter-overlay"></div>
 
-<!-- Full Screen Image Preview Overlay -->
-<img id="previewImage" class="hidden" style="position: fixed; inset: 0; width: 100vw; height: 100dvh; object-fit: cover; z-index: 15;">
-
-<!-- Live Text Always Overlaid -->
-<div id="liveTextOverlay">
-  <div class="event-title" id="overlayTitle"></div>
-  <div class="event-subtitle" id="overlaySubtitle"></div>
-</div>
-
 <header>
   <div class="brand">
     <h1>SNAPBACK</h1>
@@ -426,9 +503,25 @@ button.opt-btn.active {
   </button>
 </header>
 
+<!-- Floating Grid Layout Viewport -->
+<div class="view-container" id="viewContainer">
+  <div id="livePrintOut">
+    <div id="stickersContainer"></div>
+    <div id="liveGrid"></div>
+    <div id="liveText">
+      <div class="event-title" id="overlayTitle"></div>
+      <div class="event-subtitle" id="overlaySubtitle"></div>
+    </div>
+  </div>
+</div>
+
+<div id="sequenceIndicator" class="hidden">Photo 1 of 4</div>
 <div id="countdownOverlay" class="hidden">3</div>
 <div id="flashOverlay"></div>
 
+<!-- Hidden Video Feed injected dynamically into grid slots -->
+<video id="video" autoplay playsinline muted class="hidden"></video>
+<div id="videoOverlay" class="hidden"></div>
 <!-- Off-screen Canvas for High-Res Processing -->
 <canvas id="canvas" class="hidden"></canvas>
 
@@ -436,7 +529,7 @@ button.opt-btn.active {
 <div class="controls-wrapper" id="mainControls">
   <button class="settings-pill" id="openSettingsBtn">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-    Filters & Timer
+    Tune & Frame
   </button>
   
   <div class="shutter-row">
@@ -465,8 +558,14 @@ button.opt-btn.active {
 <div class="bottom-sheet" id="optionsSheet">
   <div class="drag-handle"></div>
 
+  <div class="row-label">Layout</div>
+  <div class="scroll-row" id="layoutControls"></div>
+
   <div class="row-label">Timer</div>
   <div class="scroll-row" id="timerControls"></div>
+
+  <div class="row-label">Frame</div>
+  <div class="scroll-row" id="themeControls"></div>
 
   <div class="row-label">Analog Filter</div>
   <div class="scroll-row" id="filterControls"></div>
@@ -499,12 +598,40 @@ let facingMode = "environment";
 let flashEnabled = false;
 let sheetOpen = false;
 const ADMIN_PIN = "1234"; 
+let capturedPhotos = []; 
 
 /* ================= CONFIGURATIONS ================= */
+const LAYOUTS = {
+  single: { name: "1 Photo", count: 1, cols: 1, rows: 1, crop: 'portrait' },
+  grid2:  { name: "2 Grid",  count: 2, cols: 2, rows: 1, crop: 'portrait' },
+  grid4:  { name: "4 Grid",  count: 4, cols: 2, rows: 2, crop: 'portrait' },
+  grid8:  { name: "8 Grid",  count: 8, cols: 2, rows: 4, crop: 'portrait' }
+};
+
 const TIMERS = {
   t3:  { name: "3s", value: 3 },
   t5:  { name: "5s", value: 5 },
   off: { name: "Off", value: 0 }
+};
+
+const FRAMES = {
+  polaroid: { name: "Classic White", bgFill: "#ffffff", textCol: "#111111" },
+  midnight: { name: "Dark Mode", bgFill: "#111111", textCol: "#ffffff" },
+  kraft:    { name: "Kraft", bgFill: "#e7e5e4", textCol: "#1c1917" },
+  blue:     { name: "Cyan", bgFill: "#f0f9ff", textCol: "#0369a1" },
+  stickers: { 
+    name: "Kawaii 🎀", 
+    bgFill: "#fdf2f8", 
+    textCol: "#be185d",
+    stickers: [
+      { emoji: "💖", left: "8%", top: "8%", size: 0.1, angle: -15 },
+      { emoji: "✨", right: "10%", top: "25%", size: 0.08, angle: 10 },
+      { emoji: "🎀", right: "6%", bottom: "25%", size: 0.12, angle: -20 },
+      { emoji: "🌸", left: "6%", bottom: "18%", size: 0.1, angle: 15 },
+      { emoji: "🧸", right: "82%", top: "65%", size: 0.09, angle: 5 },
+      { emoji: "🍒", left: "85%", top: "45%", size: 0.08, angle: -10 }
+    ]
+  }
 };
 
 const FILTERS = {
@@ -519,20 +646,29 @@ const FILTERS = {
   soft:    { name: "Dreamy Glow", css: "blur(0.5px) brightness(1.1) contrast(0.9) saturate(0.9)", overlay: "rgba(255, 255, 255, 0.08)", vignette: false }
 };
 
+let currentLayoutKey = "single";
 let currentTimerKey = "t3";
+let currentFrameKey = "polaroid";
 let currentFilterKey = "none";
 
 /* ================= DOM ELEMENTS ================= */
 const bgVideo = document.getElementById("bgVideo");
 const bgVideoOverlay = document.getElementById("bgVideoOverlay");
+const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
-const previewImage = document.getElementById("previewImage");
 
+const videoOverlay = document.getElementById("videoOverlay");
 const flashOverlay = document.getElementById("flashOverlay");
 const countdownOverlay = document.getElementById("countdownOverlay");
+const sequenceIndicator = document.getElementById("sequenceIndicator");
 
+const viewContainer = document.getElementById("viewContainer");
+const livePrintOut = document.getElementById("livePrintOut");
+const liveGrid = document.getElementById("liveGrid");
+const stickersContainer = document.getElementById("stickersContainer");
 const overlayTitle = document.getElementById("overlayTitle");
 const overlaySubtitle = document.getElementById("overlaySubtitle");
+const liveText = document.getElementById("liveText");
 
 const optionsSheet = document.getElementById("optionsSheet");
 const sheetOverlay = document.getElementById("sheetOverlay");
@@ -561,6 +697,20 @@ const inputSubtitle = document.getElementById("inputSubtitle");
 
 /* ================= INITIALIZATION ================= */
 function initUI() {
+  const layoutControls = document.getElementById("layoutControls");
+  Object.keys(LAYOUTS).forEach(key => {
+    const btn = document.createElement("button");
+    btn.className = "opt-btn" + (key === currentLayoutKey ? " active" : "");
+    btn.textContent = LAYOUTS[key].name;
+    btn.onclick = () => {
+      currentLayoutKey = key;
+      document.querySelectorAll('#layoutControls button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyLayout(); 
+    };
+    layoutControls.appendChild(btn);
+  });
+
   const timerControls = document.getElementById("timerControls");
   Object.keys(TIMERS).forEach(key => {
     const btn = document.createElement("button");
@@ -572,6 +722,20 @@ function initUI() {
       btn.classList.add('active');
     };
     timerControls.appendChild(btn);
+  });
+
+  const themeControls = document.getElementById("themeControls");
+  Object.keys(FRAMES).forEach(key => {
+    const btn = document.createElement("button");
+    btn.className = "opt-btn" + (key === currentFrameKey ? " active" : "");
+    btn.textContent = FRAMES[key].name;
+    btn.onclick = () => {
+      currentFrameKey = key;
+      document.querySelectorAll('#themeControls button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyTheme(); 
+    };
+    themeControls.appendChild(btn);
   });
 
   const filterControls = document.getElementById("filterControls");
@@ -589,8 +753,12 @@ function initUI() {
   });
 
   applyAdminText();
+  applyTheme();
+  applyLayout();
   applyLiveFilter();
   startCamera();
+  
+  window.addEventListener('resize', applyLayout);
 }
 
 /* ================= BOTTOM SHEET LOGIC ================= */
@@ -635,13 +803,105 @@ function applyAdminText() {
   overlaySubtitle.textContent = EVENT_DATE;
 }
 
-/* ================= LIVE PREVIEWS ================= */
+/* ================= LIVE PREVIEWS & GRID ================= */
+function applyTheme() {
+  const frame = FRAMES[currentFrameKey];
+  livePrintOut.style.background = frame.bgFill;
+  overlayTitle.style.color = frame.textCol;
+  
+  if(frame.bgFill === "#111111") {
+     overlaySubtitle.style.color = 'rgba(255,255,255,0.6)';
+  } else {
+     overlaySubtitle.style.color = 'rgba(0,0,0,0.5)';
+  }
+  
+  stickersContainer.innerHTML = '';
+  if (frame.stickers) {
+    frame.stickers.forEach(s => {
+      const el = document.createElement('div');
+      el.className = 'sticker';
+      el.textContent = s.emoji;
+      if (s.left) el.style.left = s.left;
+      if (s.right) el.style.right = s.right;
+      if (s.top) el.style.top = s.top;
+      if (s.bottom) el.style.bottom = s.bottom;
+      el.style.fontSize = `${s.size * 100}cqi`;
+      el.style.transform = `rotate(${s.angle}deg)`;
+      stickersContainer.appendChild(el);
+    });
+  }
+}
+
 function applyLiveFilter() {
   const f = FILTERS[currentFilterKey];
+  video.style.filter = f.css;
   bgVideo.style.filter = f.css;
+  
   let bgOverlayGrad = `linear-gradient(${f.overlay}, ${f.overlay})`;
   if (f.vignette) bgOverlayGrad += `, radial-gradient(circle, transparent 35%, rgba(0,0,0,0.6) 120%)`;
+  
+  videoOverlay.style.background = bgOverlayGrad;
   bgVideoOverlay.style.background = bgOverlayGrad;
+}
+
+function applyLayout() {
+  const layout = LAYOUTS[currentLayoutKey];
+
+  if (video.parentNode !== viewContainer) viewContainer.appendChild(video);
+  if (videoOverlay.parentNode !== viewContainer) viewContainer.appendChild(videoOverlay);
+
+  liveGrid.innerHTML = ''; 
+  
+  const pW = 720;
+  const pH = layout.crop === 'square' ? 720 : 960;
+  const gap = 24; 
+  const outerPad = 32; 
+  const bottomSpace = 240; 
+
+  const totalW = (outerPad * 2) + (pW * layout.cols) + (gap * (layout.cols - 1));
+  const totalH = outerPad + bottomSpace + (pH * layout.rows) + (gap * (layout.rows - 1));
+  
+  const vcW = viewContainer.clientWidth; 
+  const vcH = viewContainer.clientHeight; 
+  const targetRatio = totalW / totalH;
+  
+  // Fit securely inside the view bounds
+  if (vcW / vcH > targetRatio) {
+    livePrintOut.style.height = `${vcH}px`;
+    livePrintOut.style.width = `${vcH * targetRatio}px`;
+  } else {
+    livePrintOut.style.width = `${vcW}px`;
+    livePrintOut.style.height = `${vcW / targetRatio}px`;
+  }
+
+  // Use robust CSS CQI layout
+  const padCqi = (outerPad / totalW) * 100;
+  const gapCqi = (gap / totalW) * 100;
+  const bottomCqi = (bottomSpace / totalW) * 100;
+
+  livePrintOut.style.padding = `${padCqi}cqi ${padCqi}cqi 0 ${padCqi}cqi`;
+  liveGrid.style.gap = `${gapCqi}cqi`;
+  
+  liveText.style.height = `${bottomCqi}cqi`;
+  liveText.style.flex = `0 0 ${bottomCqi}cqi`;
+
+  liveGrid.style.gridTemplateColumns = `repeat(${layout.cols}, 1fr)`;
+  liveGrid.style.gridTemplateRows = `repeat(${layout.rows}, 1fr)`;
+
+  for (let i = 0; i < layout.count; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'grid-slot';
+    slot.id = `slot-${i}`;
+    liveGrid.appendChild(slot);
+  }
+
+  const firstSlot = document.getElementById('slot-0');
+  if (firstSlot) {
+    video.classList.remove('hidden');
+    videoOverlay.classList.remove('hidden');
+    firstSlot.appendChild(video);
+    firstSlot.appendChild(videoOverlay);
+  }
 }
 
 /* ================= CAMERA CONTROL ================= */
@@ -651,11 +911,14 @@ async function startCamera() {
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: facingMode, width: { ideal: 1080 }, height: { ideal: 1920 } }
     });
+    video.srcObject = stream;
     bgVideo.srcObject = stream;
+    
     const trans = facingMode === "user" ? "scaleX(-1)" : "scaleX(1)";
+    video.style.transform = trans;
     bgVideo.style.transform = trans;
   } catch (err) {
-    alert("Camera access is required for the app to function.");
+    alert("Camera access is required for the photobooth to function.");
   }
 }
 
@@ -700,7 +963,9 @@ function triggerScreenFlash() {
 }
 
 shutterBtn.onclick = async () => {
+  const layout = LAYOUTS[currentLayoutKey];
   const timerVal = TIMERS[currentTimerKey].value;
+  capturedPhotos = [];
   
   shutterBtn.disabled = true;
   mainControls.style.opacity = "0.4";
@@ -708,35 +973,64 @@ shutterBtn.onclick = async () => {
   
   if (sheetOpen) toggleSheet();
   
-  if (timerVal > 0) {
-    await doCountdown(timerVal);
-  }
-  
-  if (flashEnabled) {
-    triggerScreenFlash();
-    await sleep(150);
+  if (layout.count > 1) {
+    sequenceIndicator.classList.remove("hidden");
   }
 
-  grabFullScreen();
+  for (let i = 0; i < layout.count; i++) {
+    if (layout.count > 1) {
+      sequenceIndicator.textContent = `Photo ${i + 1} of ${layout.count}`;
+    }
+    
+    if (timerVal > 0) {
+      await doCountdown(timerVal);
+    } else {
+      if (i > 0) await sleep(1000);
+    }
+    
+    if (flashEnabled) {
+      triggerScreenFlash();
+      await sleep(150);
+    }
 
-  // Set the high-res canvas image as our preview overlay
-  previewImage.src = canvas.toDataURL("image/jpeg", 0.9);
-  previewImage.classList.remove("hidden");
+    const frameCanvas = grabSingleFrame(layout);
+    capturedPhotos.push(frameCanvas);
+
+    const img = document.createElement("img");
+    img.src = frameCanvas.toDataURL("image/jpeg", 0.9);
+
+    const currentSlot = document.getElementById(`slot-${i}`);
+    currentSlot.appendChild(img);
+
+    if (i + 1 < layout.count) {
+      const nextSlot = document.getElementById(`slot-${i + 1}`);
+      nextSlot.appendChild(video);
+      nextSlot.appendChild(videoOverlay);
+      await sleep(600); 
+    } else {
+      video.classList.add('hidden');
+      videoOverlay.classList.add('hidden');
+    }
+  }
+
+  sequenceIndicator.classList.add("hidden");
+  buildComposition(capturedPhotos, layout);
   
   mainControls.classList.add("hidden");
   uploadWrapper.classList.remove("hidden");
 };
 
-/* ================= PERFECT FULL SCREEN CROP MATH ================= */
-function grabFullScreen() {
-  const cW = 1080;
-  const cH = 1920; 
+/* ================= PERFECT CENTER CROP MATH ================= */
+function grabSingleFrame(layout) {
+  const isSquare = layout.crop === 'square';
+  const cW = 720;
+  const cH = isSquare ? 720 : 960;
 
-  canvas.width = cW;
-  canvas.height = cH;
-  const octx = canvas.getContext("2d");
+  const offCanvas = document.createElement("canvas");
+  offCanvas.width = cW;
+  offCanvas.height = cH;
+  const octx = offCanvas.getContext("2d");
 
-  // Handle Mirroring
   if (facingMode === "user") {
     octx.translate(cW, 0);
     octx.scale(-1, 1);
@@ -744,8 +1038,8 @@ function grabFullScreen() {
   
   octx.filter = FILTERS[currentFilterKey].css;
 
-  const vW = bgVideo.videoWidth || 1080;
-  const vH = bgVideo.videoHeight || 1920;
+  const vW = video.videoWidth || 1080;
+  const vH = video.videoHeight || 1920;
   const vRatio = vW / vH;
   const cRatio = cW / cH;
 
@@ -759,11 +1053,10 @@ function grabFullScreen() {
     sY = (vH - sH) / 2;
   }
 
-  octx.drawImage(bgVideo, sX, sY, sW, sH, 0, 0, cW, cH);
+  octx.drawImage(video, sX, sY, sW, sH, 0, 0, cW, cH);
   octx.setTransform(1, 0, 0, 1, 0, 0);
   octx.filter = "none";
 
-  // Overlay Filters
   const filter = FILTERS[currentFilterKey];
   if (filter.overlay !== 'transparent') {
     octx.fillStyle = filter.overlay;
@@ -776,26 +1069,71 @@ function grabFullScreen() {
     octx.fillStyle = v;
     octx.fillRect(0, 0, cW, cH);
   }
+  
+  return offCanvas;
+}
 
-  // Draw Event Text directly onto the exported high-res image
-  if (EVENT_NAME || EVENT_DATE) {
-    octx.textAlign = "center";
-    octx.fillStyle = "white";
-    octx.shadowColor = "rgba(0,0,0,0.5)";
-    octx.shadowBlur = 15;
-    octx.shadowOffsetY = 4;
+/* ================= BUILD FINAL HIGH-RES UPLOAD ================= */
+function buildComposition(photos, layout) {
+  const frame = FRAMES[currentFrameKey];
+  const pW = 720;
+  const pH = layout.crop === 'square' ? 720 : 960; 
+  const gap = 24;
+  const outerPad = 32;
+  const bottomSpace = 240; 
+
+  canvas.width = (outerPad * 2) + (pW * layout.cols) + (gap * (layout.cols - 1));
+  canvas.height = outerPad + bottomSpace + (pH * layout.rows) + (gap * (layout.rows - 1));
+
+  ctx.fillStyle = frame.bgFill;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  photos.forEach((photoCanvas, i) => {
+    const col = i % layout.cols;
+    const row = Math.floor(i / layout.cols);
+    const x = outerPad + col * (pW + gap);
+    const y = outerPad + row * (pH + gap);
     
-    // Position text cleanly near the bottom
-    const textY = cH - 300; 
-    
-    if (EVENT_NAME) {
-      octx.font = `800 60px -apple-system, BlinkMacSystemFont, sans-serif`;
-      octx.fillText(EVENT_NAME.toUpperCase(), cW / 2, textY);
-    }
-    if (EVENT_DATE) {
-      octx.font = `500 28px -apple-system, BlinkMacSystemFont, sans-serif`;
-      octx.fillText(EVENT_DATE.toUpperCase(), cW / 2, textY + 50);
-    }
+    ctx.drawImage(photoCanvas, x, y, pW, pH);
+  });
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = frame.textCol;
+  
+  const textY = canvas.height - (bottomSpace * 0.45);
+  ctx.font = `800 ${canvas.width * 0.05}px -apple-system, sans-serif`;
+  ctx.fillText(EVENT_NAME.toUpperCase(), canvas.width / 2, textY);
+  
+  ctx.font = `500 ${canvas.width * 0.022}px -apple-system, sans-serif`;
+  
+  if(frame.bgFill === "#111111") {
+     ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  } else {
+     ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  }
+  ctx.fillText(EVENT_DATE.toUpperCase(), canvas.width / 2, textY + (canvas.width * 0.04));
+
+  if (frame.stickers) {
+    frame.stickers.forEach(s => {
+      ctx.font = `${canvas.width * s.size}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      let x = 0; let y = 0;
+      if (s.left) x = canvas.width * (parseFloat(s.left) / 100);
+      if (s.right) x = canvas.width - (canvas.width * (parseFloat(s.right) / 100));
+      if (s.top) y = canvas.height * (parseFloat(s.top) / 100);
+      if (s.bottom) y = canvas.height - (canvas.height * (parseFloat(s.bottom) / 100));
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate((s.angle * Math.PI) / 180);
+      ctx.shadowColor = "rgba(0,0,0,0.15)";
+      ctx.shadowBlur = canvas.width * 0.015;
+      ctx.shadowOffsetY = canvas.width * 0.005;
+      ctx.fillText(s.emoji, 0, 0);
+      ctx.restore();
+    });
   }
 }
 
@@ -803,13 +1141,13 @@ function grabFullScreen() {
 retakeBtn.onclick = () => {
   uploadWrapper.classList.add("hidden");
   document.getElementById("statusMessage").classList.add("hidden");
-  previewImage.classList.add("hidden");
   
+  applyLayout();
   mainControls.classList.remove("hidden");
   
   shutterBtn.disabled = false;
   mainControls.style.opacity = "1";
-  mainControls.style.pointerEvents = "none"; // Parent wrapper pointer events (allows clicks to pass)
+  mainControls.style.pointerEvents = "auto";
 };
 
 uploadBtn.onclick = async () => {
