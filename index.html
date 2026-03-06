@@ -775,7 +775,7 @@ const FILTERS = {
 
 let currentLayoutKey = "single";
 let currentTimerKey = "t3";
-let currentFrameKey = "polaroid";
+let currentFrameKey = "classic"; // <--- FIX IS HERE
 let currentFilterKey = "none";
 
 /* ================= DOM ELEMENTS ================= */
@@ -783,6 +783,7 @@ const bgVideo = document.getElementById("bgVideo");
 const bgVideoOverlay = document.getElementById("bgVideoOverlay");
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d"); 
 
 const videoOverlay = document.getElementById("videoOverlay");
 const flashOverlay = document.getElementById("flashOverlay");
