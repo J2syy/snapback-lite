@@ -775,7 +775,7 @@ const FILTERS = {
 
 let currentLayoutKey = "single";
 let currentTimerKey = "t3";
-let currentFrameKey = "classic"; // <--- FIX IS HERE
+let currentFrameKey = "classic"; 
 let currentFilterKey = "none";
 
 /* ================= DOM ELEMENTS ================= */
@@ -1045,17 +1045,18 @@ function applyLayout() {
 async function startCamera() {
   if (stream) stream.getTracks().forEach(t => t.stop());
   try {
-    // FIX: Request 1080x1440 (a perfect 3:4 ratio) 
-    // This perfectly matches the 720x960 grid slots to stop the device from artificially zooming!
+    // FIX 1: Ask for a high square resolution. This tricks mobile browsers into giving 
+    // the widest, uncropped, raw 4:3 sensor feed instead of a cropped 16:9 video feed!
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facingMode, width: { ideal: 1080 }, height: { ideal: 1440 } }
+      video: { facingMode: facingMode, width: { ideal: 1920 }, height: { ideal: 1920 } }
     });
     video.srcObject = stream;
     bgVideo.srcObject = stream;
     
     const transVideo = facingMode === "user" ? "scaleX(-1)" : "scaleX(1)";
-    // Scale background up slightly so the blurred edges don't bleed black into the screen
-    const transBg = facingMode === "user" ? "scaleX(-1) scale(1.15)" : "scaleX(1) scale(1.15)";
+    // FIX 2: Dropped the background scale zoom from 1.15 to just 1.05. 
+    // It prevents the "zoomed in" feeling while still hiding the blurry edges.
+    const transBg = facingMode === "user" ? "scaleX(-1) scale(1.05)" : "scaleX(1) scale(1.05)";
     
     video.style.transform = transVideo;
     bgVideo.style.transform = transBg;
