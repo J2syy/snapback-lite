@@ -106,7 +106,7 @@ header {
 }
 .admin-btn:active { opacity: 0.5; }
 
-/* ===== FLOATING PRINT OUT (THE STRIP) ===== */
+/* ===== FLOATING PRINT OUT (THE GRID) ===== */
 .view-container {
   position: absolute;
   top: calc(env(safe-area-inset-top, 12px) + 70px);
@@ -126,7 +126,6 @@ header {
   border-radius: 4px;
   position: relative;
   box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1);
-  container-type: inline-size;
   transition: background 0.3s ease;
   overflow: hidden;
 }
@@ -173,7 +172,6 @@ header {
 
 .event-title {
   font-weight: 800;
-  font-size: 5cqi; 
   letter-spacing: -0.5px;
   margin: 0;
   text-transform: uppercase;
@@ -181,7 +179,6 @@ header {
 }
 
 .event-subtitle {
-  font-size: 2.2cqi; 
   margin-top: 4px;
   font-weight: 500;
   letter-spacing: 1.5px;
@@ -558,7 +555,7 @@ button.opt-btn.active {
 <div class="bottom-sheet" id="optionsSheet">
   <div class="drag-handle"></div>
 
-  <div class="row-label">Layout</div>
+  <div class="row-label">Grid Layout</div>
   <div class="scroll-row" id="layoutControls"></div>
 
   <div class="row-label">Timer</div>
@@ -601,6 +598,7 @@ const ADMIN_PIN = "1234";
 let capturedPhotos = []; 
 
 /* ================= CONFIGURATIONS ================= */
+// Strips completely removed - pure grids only!
 const LAYOUTS = {
   single: { name: "1 Photo", count: 1, cols: 1, rows: 1, crop: 'portrait' },
   grid2:  { name: "2 Grid",  count: 2, cols: 2, rows: 1, crop: 'portrait' },
@@ -734,6 +732,7 @@ function initUI() {
       document.querySelectorAll('#themeControls button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       applyTheme(); 
+      applyLayout(); // Ensure correct sticker dimensions get reapplied!
     };
     themeControls.appendChild(btn);
   });
@@ -821,11 +820,11 @@ function applyTheme() {
       const el = document.createElement('div');
       el.className = 'sticker';
       el.textContent = s.emoji;
+      el.dataset.size = s.size; // Save raw ratio to handle scaling mathematically
       if (s.left) el.style.left = s.left;
       if (s.right) el.style.right = s.right;
       if (s.top) el.style.top = s.top;
       if (s.bottom) el.style.bottom = s.bottom;
-      el.style.fontSize = `${s.size * 100}cqi`;
       el.style.transform = `rotate(${s.angle}deg)`;
       stickersContainer.appendChild(el);
     });
@@ -865,25 +864,31 @@ function applyLayout() {
   const vcH = viewContainer.clientHeight; 
   const targetRatio = totalW / totalH;
   
-  // Fit securely inside the view bounds
+  let scale;
+  // Fit securely inside the view bounds mathematically!
+  // This completely fixes the CSS "no grid" bug for older browsers.
   if (vcW / vcH > targetRatio) {
-    livePrintOut.style.height = `${vcH}px`;
-    livePrintOut.style.width = `${vcH * targetRatio}px`;
+    scale = vcH / totalH;
   } else {
-    livePrintOut.style.width = `${vcW}px`;
-    livePrintOut.style.height = `${vcW / targetRatio}px`;
+    scale = vcW / totalW;
   }
 
-  // Use robust CSS CQI layout
-  const padCqi = (outerPad / totalW) * 100;
-  const gapCqi = (gap / totalW) * 100;
-  const bottomCqi = (bottomSpace / totalW) * 100;
-
-  livePrintOut.style.padding = `${padCqi}cqi ${padCqi}cqi 0 ${padCqi}cqi`;
-  liveGrid.style.gap = `${gapCqi}cqi`;
+  livePrintOut.style.width = `${totalW * scale}px`;
+  livePrintOut.style.height = `${totalH * scale}px`;
+  livePrintOut.style.padding = `${outerPad * scale}px ${outerPad * scale}px 0 ${outerPad * scale}px`;
+  liveGrid.style.gap = `${gap * scale}px`;
   
-  liveText.style.height = `${bottomCqi}cqi`;
-  liveText.style.flex = `0 0 ${bottomCqi}cqi`;
+  liveText.style.height = `${bottomSpace * scale}px`;
+  liveText.style.flex = `0 0 ${bottomSpace * scale}px`;
+
+  overlayTitle.style.fontSize = `${totalW * scale * 0.05}px`;
+  overlaySubtitle.style.fontSize = `${totalW * scale * 0.022}px`;
+  
+  // Update sticker sizes based on pure mathematics, no CSS container queries!
+  document.querySelectorAll('.sticker').forEach(el => {
+    const sizeRatio = parseFloat(el.dataset.size);
+    el.style.fontSize = `${sizeRatio * totalW * scale}px`;
+  });
 
   liveGrid.style.gridTemplateColumns = `repeat(${layout.cols}, 1fr)`;
   liveGrid.style.gridTemplateRows = `repeat(${layout.rows}, 1fr)`;
@@ -908,8 +913,10 @@ function applyLayout() {
 async function startCamera() {
   if (stream) stream.getTracks().forEach(t => t.stop());
   try {
+    // FIX: Request 1080x1440 (a perfect 3:4 ratio) 
+    // This perfectly matches the 720x960 grid slots to stop the device from artificially zooming!
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facingMode, width: { ideal: 1080 }, height: { ideal: 1920 } }
+      video: { facingMode: facingMode, width: { ideal: 1080 }, height: { ideal: 1440 } }
     });
     video.srcObject = stream;
     bgVideo.srcObject = stream;
